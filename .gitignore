@@ -2,3 +2,6 @@
 encore.gen.go
 encore.gen.cue
 /encore.gen
+.gemini/
+.codex/
+

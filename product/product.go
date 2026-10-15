@@ -1,0 +1,277 @@
+package product
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
+	"encore.app/auth"
+	"encore.dev/beta/errs"
+	"encore.dev/storage/sqldb"
+)
+
+var db = sqldb.NewDatabase("products", sqldb.DatabaseConfig{
+	Migrations: "./migrations",
+})
+
+type Category struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+	Icon string `json:"icon"`
+}
+
+type Product struct {
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	Slug           string    `json:"slug"`
+	Description    string    `json:"description"`
+	Price          int64     `json:"price"` // IDR
+	Stock          int       `json:"stock"`
+	IsDigital      bool      `json:"is_digital"`
+	DigitalFileURL string    `json:"digital_file_url,omitempty"`
+	WeightGrams    int       `json:"weight_grams"`
+	ImageURL       string    `json:"image_url"`
+	CategoryID     *int64    `json:"category_id"`
+	CategoryName   string    `json:"category_name,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type ListParams struct {
+	CategorySlug string `json:"category_slug,omitempty"`
+	IsDigital    string `json:"is_digital,omitempty"` // "true", "false", or ""
+	Search       string `json:"search,omitempty"`
+	Limit        int    `json:"limit,omitempty"`
+	Offset       int    `json:"offset,omitempty"`
+}
+
+type ListResponse struct {
+	Products []*Product `json:"products"`
+	Total    int64      `json:"total"`
+}
+
+// List returns products with optional filters.
+//
+//encore:api public method=GET path=/products
+func List(ctx context.Context, p *ListParams) (*ListResponse, error) {
+	if p.Limit <= 0 || p.Limit > 100 {
+		p.Limit = 50
+	}
+
+	query := `
+		SELECT p.id, p.name, p.slug, p.description, p.price, p.stock, 
+		       p.is_digital, p.weight_grams, p.image_url, p.category_id, 
+		       COALESCE(c.name, '') as category_name, p.created_at, p.updated_at
+		FROM products p
+		LEFT JOIN categories c ON p.category_id = c.id
+		WHERE 1=1
+	`
+	var args []any
+	argIdx := 1
+
+	if p.Search != "" {
+		query += fmt.Sprintf(" AND (p.name ILIKE $%d OR p.description ILIKE $%d)", argIdx, argIdx)
+		args = append(args, "%"+p.Search+"%")
+		argIdx++
+	}
+
+	if p.CategorySlug != "" {
+		query += fmt.Sprintf(" AND c.slug = $%d", argIdx)
+		args = append(args, p.CategorySlug)
+		argIdx++
+	}
+
+	if p.IsDigital == "true" {
+		query += fmt.Sprintf(" AND p.is_digital = $%d", argIdx)
+		args = append(args, true)
+		argIdx++
+	} else if p.IsDigital == "false" {
+		query += fmt.Sprintf(" AND p.is_digital = $%d", argIdx)
+		args = append(args, false)
+		argIdx++
+	}
+
+	query += fmt.Sprintf(" ORDER BY p.id DESC LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	args = append(args, p.Limit, p.Offset)
+
+	rows, err := db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+	defer rows.Close()
+
+	var products []*Product
+	for rows.Next() {
+		var pr Product
+		if err := rows.Scan(
+			&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
+			&pr.IsDigital, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+			&pr.CategoryName, &pr.CreatedAt, &pr.UpdatedAt,
+		); err != nil {
+			return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+		}
+		products = append(products, &pr)
+	}
+
+	return &ListResponse{
+		Products: products,
+		Total:    int64(len(products)),
+	}, nil
+}
+
+// Get returns a single product by numeric ID or slug.
+//
+//encore:api public method=GET path=/products/:identifier
+func Get(ctx context.Context, identifier string) (*Product, error) {
+	var pr Product
+	var err error
+
+	if id, parseErr := strconv.ParseInt(identifier, 10, 64); parseErr == nil {
+		err = db.QueryRow(ctx, `
+			SELECT p.id, p.name, p.slug, p.description, p.price, p.stock, 
+			       p.is_digital, p.weight_grams, p.image_url, p.category_id, 
+			       COALESCE(c.name, '') as category_name, p.created_at, p.updated_at
+			FROM products p
+			LEFT JOIN categories c ON p.category_id = c.id
+			WHERE p.id = $1
+		`, id).Scan(
+			&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
+			&pr.IsDigital, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+			&pr.CategoryName, &pr.CreatedAt, &pr.UpdatedAt,
+		)
+	} else {
+		err = db.QueryRow(ctx, `
+			SELECT p.id, p.name, p.slug, p.description, p.price, p.stock, 
+			       p.is_digital, p.weight_grams, p.image_url, p.category_id, 
+			       COALESCE(c.name, '') as category_name, p.created_at, p.updated_at
+			FROM products p
+			LEFT JOIN categories c ON p.category_id = c.id
+			WHERE p.slug = $1
+		`, identifier).Scan(
+			&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
+			&pr.IsDigital, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+			&pr.CategoryName, &pr.CreatedAt, &pr.UpdatedAt,
+		)
+	}
+
+	if errors.Is(err, sqldb.ErrNoRows) {
+		return nil, &errs.Error{Code: errs.NotFound, Message: "Product not found"}
+	} else if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	return &pr, nil
+}
+
+type CategoriesResponse struct {
+	Categories []*Category `json:"categories"`
+}
+
+// Categories returns all available product categories.
+//
+//encore:api public method=GET path=/categories
+func Categories(ctx context.Context) (*CategoriesResponse, error) {
+	rows, err := db.Query(ctx, `SELECT id, name, slug, icon FROM categories ORDER BY id ASC`)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+	defer rows.Close()
+
+	var list []*Category
+	for rows.Next() {
+		var c Category
+		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &c.Icon); err != nil {
+			return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+		}
+		list = append(list, &c)
+	}
+	return &CategoriesResponse{Categories: list}, nil
+}
+
+type CreateProductParams struct {
+	Name           string `json:"name"`
+	Description    string `json:"description"`
+	Price          int64  `json:"price"`
+	Stock          int    `json:"stock"`
+	IsDigital      bool   `json:"is_digital"`
+	DigitalFileURL string `json:"digital_file_url,omitempty"`
+	WeightGrams    int    `json:"weight_grams"`
+	ImageURL       string `json:"image_url"`
+	CategoryID     *int64 `json:"category_id"`
+}
+
+// Create adds a new product (admin only).
+//
+//encore:api auth method=POST path=/products
+func Create(ctx context.Context, p *CreateProductParams) (*Product, error) {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	slug := slugify(p.Name)
+	if p.WeightGrams <= 0 && !p.IsDigital {
+		p.WeightGrams = 500
+	}
+
+	var pr Product
+	err = db.QueryRow(ctx, `
+		INSERT INTO products (name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, category_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		RETURNING id, name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, category_id, created_at, updated_at
+	`, p.Name, slug, p.Description, p.Price, p.Stock, p.IsDigital, p.DigitalFileURL, p.WeightGrams, p.ImageURL, p.CategoryID).Scan(
+		&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
+		&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+		&pr.CreatedAt, &pr.UpdatedAt,
+	)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	return &pr, nil
+}
+
+// Delete removes a product by ID (admin only).
+//
+//encore:api auth method=DELETE path=/products/:id
+func Delete(ctx context.Context, id int64) error {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	_, err = db.Exec(ctx, `DELETE FROM products WHERE id = $1`, id)
+	return err
+}
+
+// AdjustStock adjusts product stock level (can be negative to decrease or positive to restore).
+func AdjustStock(ctx context.Context, productID int64, delta int) error {
+	res, err := db.Exec(ctx, `
+		UPDATE products 
+		SET stock = stock + $1, updated_at = NOW()
+		WHERE id = $2 AND (stock + $1 >= 0 OR is_digital = TRUE)
+	`, delta, productID)
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return errors.New("insufficient stock or product not found")
+	}
+	return nil
+}
+
+func slugify(s string) string {
+	s = strings.ToLower(s)
+	reg := regexp.MustCompile("[^a-z0-9]+")
+	s = reg.ReplaceAllString(s, "-")
+	s = strings.Trim(s, "-")
+	if s == "" {
+		s = fmt.Sprintf("product-%d", time.Now().Unix())
+	}
+	return s
+}

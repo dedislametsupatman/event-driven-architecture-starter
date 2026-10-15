@@ -1,130 +1,120 @@
-# Event-Driven Architecture Starter
+# Supatman Online Store (Physical & Digital E-Commerce)
 
-This is an event-driven microservices application using Pub/Sub for asynchronous communication between services.
+Aplikasi Toko Online Pribadi Full-Stack berbasis **Microservices & Event-Driven Architecture (EDA)** menggunakan framework **[Encore.dev](https://encore.dev)** (Go) dan **React 18 + Tailwind CSS**.
 
-The example in this starter is an Uptime Monitoring System that continuously monitors the uptime of a list of websites. 
+Mendukung penjualan **Barang Fisik** (perhitungan ongkir flat & alamat ekspedisi) serta **Produk Digital** (e-book, software license, template design dengan akses unduhan instan saat lunas).
 
-When it detects a website is down, it posts a Slack message notifying that the website is down, and another message when the website is back up again.
+---
 
-It has a react frontend and you can try a demo version [here](https://uptime.encore.build/).
+## Arsitektur & CodeGraph
 
-[![Deploy to Encore](https://github.com/encoredev/examples/raw/main/assets/deploytoenc.svg)](https://app.encore.cloud/create-app/clone/uptime)
+```mermaid
+graph TD
+    User["Pelanggan / Web UI"] -->|Katalog & Checkout| FrontendSvc["Service: frontend"]
+    Admin["Admin Toko"] -->|Kelola Produk & Resi| FrontendSvc
 
-![Frontend](https://encore.dev/assets/tutorials/uptime/frontend.png)
-![Architecture](https://encore.dev/assets/tutorials/uptime/encore-flow.png)
+    FrontendSvc -->|HTTP /products, /categories| ProductSvc["Service: product"]
+    FrontendSvc -->|HTTP /orders, /orders/:id| OrderSvc["Service: order"]
+    FrontendSvc -->|HTTP /auth/*| AuthSvc["Service: auth"]
+    FrontendSvc -->|HTTP /payment/*| PaymentSvc["Service: payment"]
 
-## Build from scratch with a tutorial
+    %% Databases
+    ProductSvc --> ProductDB[("sqldb: products")]
+    OrderSvc --> OrderDB[("sqldb: orders")]
+    AuthSvc --> AuthDB[("sqldb: auth")]
 
-If you prefer, check out the [tutorial](https://encore.dev/docs/go/tutorials/uptime) to learn how to build this application from scratch.
+    %% Pub/Sub Flow 1
+    OrderSvc -->|Publish order-created| TopicOrderCreated["Topic: order-created"]
+    TopicOrderCreated -->|Notify admin & customer| NotifSvc["Service: notification"]
 
-## Prerequisites 
+    %% Pub/Sub Flow 2
+    PaymentSvc -->|Publish payment-success| TopicPaymentSuccess["Topic: payment-success"]
+    TopicPaymentSuccess -->|Sub: mark-order-paid| OrderSvc
+    TopicPaymentSuccess -->|Sub: send-invoice-receipt| NotifSvc
 
-**Install Encore:**
-- **macOS:** `brew install encoredev/tap/encore`
-- **Linux:** `curl -L https://encore.dev/install.sh | bash`
-- **Windows:** `iwr https://encore.dev/install.ps1 | iex`
-  
-**Docker:**
-1. Install [Docker](https://docker.com)
-2. Start Docker
-
-## Create app
-
-Create a local app from this template:
-
-```bash
-encore app create my-app-name --example=uptime
+    %% Cron
+    CronCancel["Cron: cancel-unpaid-orders (every 15m)"] -->|Auto cancel expired orders & restore stock| OrderSvc
 ```
 
-## Run app locally
+---
 
-Before running your application, make sure you have Docker installed and running. Then run this command from your application's root folder:
+## Fitur Utama
+
+1. **Multi-Domain Products**:
+   - Mendukung produk fisik (stok finite, input alamat pengiriman, nomor resi pengiriman).
+   - Mendukung produk digital (stok unlimited, link download/akses file instan yang otomatis terbuka setelah pembayaran terverifikasi).
+2. **Multi-Payment Ready**:
+   - **Transfer Bank Manual** (BCA & Mandiri) lengkap dengan fitur unggah bukti transfer.
+   - **QRIS Static** (Scan barcode instan).
+   - **Midtrans Payment Gateway** (Credit Card, GoPay, OVO, ShopeePay, Virtual Account).
+3. **Event-Driven Pub/Sub**:
+   - Topik `order-created`: memicu notifikasi pesanan baru secara asinkron.
+   - Topik `payment-success`: otomatis meng-update status pesanan menjadi `paid` dan membuka akses download digital.
+4. **Auto-Cancellation Cron Job**:
+   - Setiap 15 menit, cron memeriksa pesanan yang belum dibayar selama 24 jam untuk otomatis dibatalkan dan mengembalikan stok produk fisik.
+5. **Autentikasi & Role Management**:
+   - Registrasi dan login pelanggan & admin menggunakan bcrypt hashing dan Encore auth token handler.
+   - Portal Admin terintegrasi untuk menambah produk, verifikasi bukti bayar manual, dan input nomor resi pengiriman.
+6. **Frontend Modern (React + Tailwind)**:
+   - Tampilan gelap (*sleek dark glassmorphism*) dengan tipografi Plus Jakarta Sans.
+   - Drawer keranjang belanja mengambang, filter produk instan, pencarian, dan pelacakan pesanan digital.
+
+---
+
+## Struktur Direktori
+
+```
+encore/
+├── encore.app                 — Konfigurasi Encore Application
+├── go.mod / go.sum            — Dependensi Go (encore.dev v1.57, bcrypt, pgx)
+├── auth/                      — Layanan registrasi, login, token auth handler
+│   ├── auth.go
+│   └── migrations/            — Tabel 'users'
+├── product/                   — Layanan katalog produk & kategori
+│   ├── product.go
+│   └── migrations/            — Tabel 'categories' & 'products' (dengan seed data)
+├── order/                     — Layanan keranjang belanja, checkout, dan cron pembatalan
+│   ├── order.go
+│   └── migrations/            — Tabel 'orders' & 'order_items'
+├── payment/                   — Layanan pembayaran (Transfer Bank, QRIS, Midtrans)
+│   └── payment.go
+├── notification/              — Layanan notifikasi event-driven (Telegram/WhatsApp/Log)
+│   └── notification.go
+└── frontend/                  — SPA UI (React 18 + Tailwind CSS + Vite)
+    ├── frontend.go            — Go embed.FS handler menyajikan aset web
+    ├── src/
+    │   ├── App.tsx            — Komponen utama antarmuka toko online
+    │   ├── api.ts             — Client API terstruktur untuk seluruh endpoint Encore
+    │   └── index.css          — Styling design tokens & typography
+    └── dist/                  — Hasil build bundle produksi
+```
+
+---
+
+## Cara Menjalankan
+
+### 1. Prasyarat
+- **Docker** aktif di komputer Anda.
+- **Encore CLI** terpasang (`curl -L https://encore.dev/install.sh | bash`).
+
+### 2. Jalankan Backend & Frontend
+Jalankan perintah berikut di root direktori proyek:
 
 ```bash
 encore run
 ```
-To use the Slack integration, set the Slack Webhook URL (see tutorial above):
 
-```bash
-encore secret set --type local,dev,pr,prod SlackWebhookURL
-```
+Encore akan secara otomatis:
+- Menyiapkan cluster database PostgreSQL lokal di Docker.
+- Menjalankan migrasi schema dan initial seed produk secara otomatis.
+- Mengompilasi seluruh service dan menyajikan backend API serta web frontend.
 
-**Note:** Cron Jobs do not execute when running locally.
+### 3. Akses Antarmuka
+- **Website Toko Online**: [http://localhost:4000/](http://localhost:4000/)
+- **Encore Local Developer Dashboard**: [http://localhost:9400/](http://localhost:9400/) *(untuk melihat visualisasi CodeGraph interaktif, trace request, dan service catalog)*.
 
-## View the frontend
+---
 
-While `encore run` is running, head over to [http://localhost:4000/frontend/](http://localhost:4000/frontend/) to view the frontend for your uptime monitor.
-
-## Using the API
-
-Check if a given site is up (defaults to 'https://' if left out):
-```bash
-curl 'http://localhost:4000/ping/google.com'
-```
-
-Add a site to be automatically pinged every 1 hour:
-```bash
-curl 'http://localhost:4000/site' -d '{"url":"google.com"}'
-```
-
-Check all tracked sites immediately:
-```bash
-curl -X POST 'http://localhost:4000/check-all'
-```
-
-Get the current status of all tracked sites:
-```bash
-curl 'http://localhost:4000/status'
-```
-
-## Local Development Dashboard
-
-While `encore run` is running, open [http://localhost:9400/](http://localhost:9400/) to access Encore's [local developer dashboard](https://encore.dev/docs/go/observability/dev-dash).
-
-Here you can see traces for all requests you've made, see the application architecture diagram, and see API documentation in the Service Catalog.
-
-## Connecting to databases
-
-You can connect to your databases via psql shell:
-
-```bash
-encore db shell <database-name> --env=local --superuser
-```
-
-Learn more in the [CLI docs](https://encore.dev/docs/go/cli/cli-reference#database-management).
-
-## Deployment
-
-### Self-hosting
-
-See the [self-hosting instructions](https://encore.dev/docs/go/self-host/docker-build) for how to use `encore build docker` to create a Docker image and configure it.
-
-### Encore Cloud Platform
-
-Deploy your application to a free staging environment in Encore's development cloud using `git push encore`:
-
-```bash
-git add -A .
-git commit -m 'Commit message'
-git push encore
-```
-
-You can also open your app in the [Cloud Dashboard](https://app.encore.dev) to integrate with GitHub, or connect your AWS/GCP account, enabling Encore to automatically handle cloud deployments for you.
-
-## Link to GitHub
-
-Follow these steps to link your app to GitHub:
-
-1. Create a GitHub repo, commit and push the app.
-2. Open your app in the [Cloud Dashboard](https://app.encore.dev).
-3. Go to **Settings ➔ GitHub** and click on **Link app to GitHub** to link your app to GitHub and select the repo you just created.
-4. To configure Encore to automatically trigger deploys when you push to a specific branch name, go to the **Overview** page for your intended environment. Click on **Settings** and then in the section **Branch Push** configure the **Branch name** and hit **Save**.
-5. Commit and push a change to GitHub to trigger a deploy.
-
-[Learn more in the docs](https://encore.dev/docs/platform/integrations/github)
-
-## Testing
-
-```bash
-encore test ./...
-```
+## Akun Demo & Akses Admin
+- **Mendaftar Admin**: Buka menu **Masuk** $\rightarrow$ **Daftar**, lalu isi field *Kode Rahasia Admin* dengan: `admin123`.
+- Setelah login sebagai admin, tombol **Admin Panel** akan muncul di bar navigasi atas untuk menambah produk dan memverifikasi pembayaran.
