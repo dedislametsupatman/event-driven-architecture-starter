@@ -39,7 +39,37 @@ interface CartItem {
 }
 
 export default function App() {
-  const [viewMode, setViewMode] = useState<"store" | "cms">("store");
+  const [viewMode, setViewMode] = useState<"store" | "cms">(() => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path === "/cms" || path.startsWith("/cms/") || hash === "#/cms" || hash === "#cms") {
+        return "cms";
+      }
+    }
+    return "store";
+  });
+
+  // Synchronize route changes between / and /cms
+  useEffect(() => {
+    const handleUrlChange = () => {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path === "/cms" || path.startsWith("/cms/") || hash === "#/cms" || hash === "#cms") {
+        setViewMode("cms");
+      } else {
+        setViewMode("store");
+      }
+    };
+
+    window.addEventListener("popstate", handleUrlChange);
+    window.addEventListener("hashchange", handleUrlChange);
+    return () => {
+      window.removeEventListener("popstate", handleUrlChange);
+      window.removeEventListener("hashchange", handleUrlChange);
+    };
+  }, []);
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -410,7 +440,15 @@ export default function App() {
   }
 
   if (viewMode === "cms") {
-    return <AdminCMS onBackToStore={() => setViewMode("store")} userRole={currentUser?.role} />;
+    return (
+      <AdminCMS
+        onBackToStore={() => {
+          window.history.pushState({}, "", "/");
+          setViewMode("store");
+        }}
+        userRole={currentUser?.role}
+      />
+    );
   }
 
   return (
@@ -470,15 +508,6 @@ export default function App() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2.5">
-            {/* CMS Admin Portal Button */}
-            <button
-              onClick={() => setViewMode("cms")}
-              className="text-xs font-bold px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition-all flex items-center gap-1.5 shadow-sm"
-            >
-              <span>⚙️</span>
-              <span>Admin CMS</span>
-            </button>
-
             {/* Track Order Button */}
             <button
               onClick={() => setIsTrackingModalOpen(true)}
