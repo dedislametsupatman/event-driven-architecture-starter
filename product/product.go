@@ -2,8 +2,12 @@ package product
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -11,11 +15,16 @@ import (
 
 	"encore.app/auth"
 	"encore.dev/beta/errs"
+	"encore.dev/storage/objects"
 	"encore.dev/storage/sqldb"
 )
 
 var db = sqldb.NewDatabase("products", sqldb.DatabaseConfig{
 	Migrations: "./migrations",
+})
+
+var ProductImages = objects.NewBucket("product-images", objects.BucketConfig{
+	Public: true,
 })
 
 type Category struct {
@@ -365,4 +374,108 @@ func slugify(s string) string {
 	}
 	return s
 }
+
+type UploadImageParams struct {
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	Data        string `json:"data"` // base64 string
+}
+
+type UploadImageResponse struct {
+	URL      string `json:"url"`
+	FileName string `json:"file_name"`
+}
+
+// UploadProductImage uploads an image to the product-images bucket (admin only).
+//
+//encore:api auth method=POST path=/upload/image
+func UploadProductImage(ctx context.Context, p *UploadImageParams) (*UploadImageResponse, error) {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	if p.Data == "" {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Image data is required"}
+	}
+
+	// Strip data URL prefix if present (e.g. data:image/png;base64,...)
+	data := p.Data
+	if idx := strings.Index(data, ","); idx != -1 {
+		data = data[idx+1:]
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Invalid base64 image data"}
+	}
+
+	// Determine extension
+	ext := strings.ToLower(filepath.Ext(p.FileName))
+	if ext == "" {
+		switch p.ContentType {
+		case "image/jpeg", "image/jpg":
+			ext = ".jpg"
+		case "image/png":
+			ext = ".png"
+		case "image/webp":
+			ext = ".webp"
+		case "image/gif":
+			ext = ".gif"
+		default:
+			ext = ".png"
+		}
+	}
+
+	cleanBase := slugify(strings.TrimSuffix(filepath.Base(p.FileName), ext))
+	objectName := fmt.Sprintf("%s-%d%s", cleanBase, time.Now().UnixNano()/1e6, ext)
+
+	writer := ProductImages.Upload(ctx, objectName, objects.WithUploadAttrs(objects.UploadAttrs{
+		ContentType: p.ContentType,
+	}))
+	if _, err := writer.Write(decoded); err != nil {
+		writer.Abort(err)
+		return nil, &errs.Error{Code: errs.Internal, Message: fmt.Sprintf("failed to write to bucket: %v", err)}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: fmt.Sprintf("failed to finalize upload: %v", err)}
+	}
+
+	imageURL := fmt.Sprintf("/images/%s", objectName)
+	if pub := ProductImages.PublicURL(objectName); pub != nil && pub.String() != "" {
+		imageURL = pub.String()
+	}
+
+	return &UploadImageResponse{
+		URL:      imageURL,
+		FileName: objectName,
+	}, nil
+}
+
+// ServeProductImage serves an image stored in the product-images bucket.
+//
+//encore:api public raw method=GET path=/images/:name
+func ServeProductImage(w http.ResponseWriter, req *http.Request) {
+	parts := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
+	name := parts[len(parts)-1]
+	if name == "" {
+		http.Error(w, "Image name required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := req.Context()
+	reader := ProductImages.Download(ctx, name)
+	defer reader.Close()
+
+	attrs, err := ProductImages.Attrs(ctx, name)
+	if err == nil && attrs.ContentType != "" {
+		w.Header().Set("Content-Type", attrs.ContentType)
+	} else {
+		w.Header().Set("Content-Type", "image/jpeg")
+	}
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+
+	_, _ = io.Copy(w, reader)
+}
+
 

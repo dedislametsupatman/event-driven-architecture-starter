@@ -297,5 +297,13 @@ export const api = {
       }[];
     }>("/admin/finance");
   },
+
+  async uploadProductImage(data: { file_name: string; content_type: string; data: string }) {
+    return request<{ url: string; file_name: string }>("/upload/image", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };
+
 

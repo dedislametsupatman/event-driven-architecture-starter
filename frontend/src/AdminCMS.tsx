@@ -52,6 +52,9 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
   const [formWeightGrams, setFormWeightGrams] = useState(500);
   const [formImageUrl, setFormImageUrl] = useState("");
   const [formCategoryId, setFormCategoryId] = useState<number | undefined>(undefined);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showManualUrl, setShowManualUrl] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Orders State
   const [orders, setOrders] = useState<Order[]>([]);
@@ -245,6 +248,50 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
     setFormImageUrl("https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=800&q=80");
     setFormCategoryId(categories[0]?.id || 1);
     setIsCreatingProduct(true);
+  };
+
+  const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showNotification("Format file harus berupa gambar (JPG, PNG, WebP, GIF)", true);
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      showNotification("Ukuran file maksimal 10MB", true);
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result as string;
+          const res = await api.uploadProductImage({
+            file_name: file.name,
+            content_type: file.type || "image/jpeg",
+            data: base64Data,
+          });
+          setFormImageUrl(res.url);
+          showNotification("Gambar produk berhasil di-upload ke bucket!");
+        } catch (err: any) {
+          showNotification(err.message || "Gagal meng-upload gambar ke bucket", true);
+        } finally {
+          setUploadingImage(false);
+        }
+      };
+      reader.onerror = () => {
+        showNotification("Gagal membaca file gambar", true);
+        setUploadingImage(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      showNotification(err.message || "Gagal upload", true);
+      setUploadingImage(false);
+    }
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
@@ -1433,18 +1480,115 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-                  URL Foto Produk
-                </label>
+              {/* Product Image Upload Section */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Foto Produk (Bucket Storage)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowManualUrl(!showManualUrl)}
+                    className="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                  >
+                    {showManualUrl ? "← Gunakan Upload File" : "Tulis URL Manual"}
+                  </button>
+                </div>
+
+                {/* Hidden File Input */}
                 <input
-                  type="url"
-                  required
-                  value={formImageUrl}
-                  onChange={(e) => setFormImageUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageFileSelect}
+                  accept="image/png, image/jpeg, image/webp, image/gif"
+                  className="hidden"
                 />
+
+                {!showManualUrl ? (
+                  <div className="space-y-3">
+                    {/* Preview Area if Image Exists */}
+                    {formImageUrl ? (
+                      <div className="flex items-center gap-4 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+                        <img
+                          src={formImageUrl}
+                          alt="Preview Produk"
+                          className="w-16 h-16 rounded-xl object-cover border border-slate-200 bg-white shadow-xs flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                            <span>✓</span>
+                            <span>Foto Siap Digunakan</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500 font-mono truncate mt-0.5" title={formImageUrl}>
+                            {formImageUrl}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              disabled={uploadingImage}
+                              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 font-semibold rounded-lg text-[11px] border border-slate-200 shadow-xs transition"
+                            >
+                              Ganti Foto
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormImageUrl("")}
+                              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 font-semibold rounded-lg text-[11px] transition"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Drag & Drop / Click to Upload Box */
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+                          uploadingImage
+                            ? "border-blue-400 bg-blue-50/50"
+                            : "border-slate-300 hover:border-blue-500 bg-slate-50/70 hover:bg-blue-50/30"
+                        }`}
+                      >
+                        {uploadingImage ? (
+                          <div className="flex flex-col items-center justify-center py-2">
+                            <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-2" />
+                            <p className="text-xs font-bold text-blue-700">Mengunggah ke Bucket Storage...</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Memproses dan menyimpan file secara cloud</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-lg mb-2 shadow-xs">
+                              📸
+                            </div>
+                            <p className="text-xs font-bold text-slate-800">
+                              Klik untuk Upload Foto dari Komputer
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-1">
+                              File otomatis tersimpan di Encore Object Storage Bucket (PNG, JPG, WebP max 10MB)
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Manual URL fallback */
+                  <div>
+                    <input
+                      type="url"
+                      required
+                      value={formImageUrl}
+                      onChange={(e) => setFormImageUrl(e.target.value)}
+                      placeholder="https://images.unsplash.com/... atau https://cdn.../foto.jpg"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Masukkan URL gambar publik langsung jika tidak ingin meng-upload file baru.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
