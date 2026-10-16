@@ -545,33 +545,10 @@ type StoreSettings struct {
 	StoreAnnouncement string `json:"store_announcement"`
 }
 
-func ensureStoreSettingsTable(ctx context.Context) error {
-	_, err := db.Exec(ctx, `
-		CREATE TABLE IF NOT EXISTS store_settings (
-			key VARCHAR(100) PRIMARY KEY,
-			value TEXT NOT NULL,
-			updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
-		);
-		INSERT INTO store_settings (key, value)
-		VALUES 
-			('store_name', 'SUPATMAN STORE'),
-			('store_tagline', 'Hardware Setup & Digital Atelier'),
-			('store_logo_url', ''),
-			('store_badge', 'OFFICIAL'),
-			('store_phone', '08123456789'),
-			('store_address', 'Jl. Merdeka No. 45, Bandung, Jawa Barat'),
-			('store_announcement', 'Pengiriman Kilat Pulau Jawa & Akses Unduhan Instan Seluruh Aset Digital')
-		ON CONFLICT (key) DO NOTHING;
-	`)
-	return err
-}
-
 // GetStoreSettings returns the public store profile and branding configuration.
 //
 //encore:api public method=GET path=/store/settings
 func GetStoreSettings(ctx context.Context) (*StoreSettings, error) {
-	_ = ensureStoreSettingsTable(ctx)
-
 	s := StoreSettings{
 		StoreName:         "SUPATMAN STORE",
 		StoreTagline:      "Hardware Setup & Digital Atelier",
@@ -621,10 +598,6 @@ func UpdateStoreSettings(ctx context.Context, p *StoreSettings) (*StoreSettings,
 	usr, err := auth.Me(ctx)
 	if err != nil || usr.Role != "admin" {
 		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
-	}
-
-	if err := ensureStoreSettingsTable(ctx); err != nil {
-		return nil, &errs.Error{Code: errs.Internal, Message: fmt.Sprintf("Failed to initialize store settings table: %v", err)}
 	}
 
 	configs := map[string]string{
