@@ -89,6 +89,22 @@ var OrderCreatedTopic = pubsub.NewTopic[*OrderCreatedEvent]("order-created", pub
 	DeliveryGuarantee: pubsub.AtLeastOnce,
 })
 
+type OrderStatusChangedEvent struct {
+	OrderID        int64     `json:"order_id"`
+	CustomerName   string    `json:"customer_name"`
+	CustomerEmail  string    `json:"customer_email"`
+	CustomerPhone  string    `json:"customer_phone"`
+	OldStatus      string    `json:"old_status"`
+	NewStatus      string    `json:"new_status"`
+	TrackingNumber string    `json:"tracking_number,omitempty"`
+	GrandTotal     int64     `json:"grand_total"`
+	ChangedAt      time.Time `json:"changed_at"`
+}
+
+var OrderStatusChangedTopic = pubsub.NewTopic[*OrderStatusChangedEvent]("order-status-changed", pubsub.TopicConfig{
+	DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
 // Create processes checkout, reserves product stock, and creates an order.
 //
 //encore:api public method=POST path=/orders
@@ -446,23 +462,82 @@ func UpdateStatus(ctx context.Context, id int64, p *UpdateStatusParams) error {
 		return &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
 	}
 
+	var ord Order
+	err = db.QueryRow(ctx, `
+		SELECT id, customer_name, customer_email, customer_phone, status, grand_total, COALESCE(tracking_number, '')
+		FROM orders WHERE id = $1
+	`, id).Scan(&ord.ID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone, &ord.Status, &ord.GrandTotal, &ord.TrackingNumber)
+	if err != nil {
+		return &errs.Error{Code: errs.NotFound, Message: "Order not found"}
+	}
+
+	oldStatus := ord.Status
+	newTracking := ord.TrackingNumber
+	if p.TrackingNumber != "" {
+		newTracking = p.TrackingNumber
+	}
+
 	_, err = db.Exec(ctx, `
 		UPDATE orders
 		SET status = $1, tracking_number = COALESCE(NULLIF($2, ''), tracking_number), updated_at = NOW()
 		WHERE id = $3
 	`, p.Status, p.TrackingNumber, id)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Publish status changed event to trigger in-app & email notifications
+	if oldStatus != p.Status || (p.TrackingNumber != "" && p.TrackingNumber != ord.TrackingNumber) {
+		_, _ = OrderStatusChangedTopic.Publish(ctx, &OrderStatusChangedEvent{
+			OrderID:        id,
+			CustomerName:   ord.CustomerName,
+			CustomerEmail:  ord.CustomerEmail,
+			CustomerPhone:  ord.CustomerPhone,
+			OldStatus:      oldStatus,
+			NewStatus:      p.Status,
+			TrackingNumber: newTracking,
+			GrandTotal:     ord.GrandTotal,
+			ChangedAt:      time.Now(),
+		})
+	}
+
+	return nil
 }
 
 // MarkPaid marks an order as paid and completes digital delivery.
 func MarkPaid(ctx context.Context, orderID int64) error {
-	_, err := db.Exec(ctx, `
+	var ord Order
+	err := db.QueryRow(ctx, `
+		SELECT id, customer_name, customer_email, customer_phone, status, grand_total, COALESCE(tracking_number, '')
+		FROM orders WHERE id = $1
+	`, orderID).Scan(&ord.ID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone, &ord.Status, &ord.GrandTotal, &ord.TrackingNumber)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec(ctx, `
 		UPDATE orders
 		SET status = 'paid', updated_at = NOW()
 		WHERE id = $1 AND status = 'pending'
 	`, orderID)
+	if err != nil {
+		return err
+	}
 	rlog.Info("order marked as paid", "order_id", orderID)
-	return err
+
+	_, _ = OrderStatusChangedTopic.Publish(ctx, &OrderStatusChangedEvent{
+		OrderID:        orderID,
+		CustomerName:   ord.CustomerName,
+		CustomerEmail:  ord.CustomerEmail,
+		CustomerPhone:  ord.CustomerPhone,
+		OldStatus:      "pending",
+		NewStatus:      "paid",
+		TrackingNumber: ord.TrackingNumber,
+		GrandTotal:     ord.GrandTotal,
+		ChangedAt:      time.Now(),
+	})
+
+	return nil
 }
 
 // CancelExpiredOrders automatically cancels unpaid pending orders older than 24 hours and restores stock.

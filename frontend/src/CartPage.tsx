@@ -105,6 +105,8 @@ export function CartPage({
         items: cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
       });
 
+      localStorage.setItem("customer_email", checkoutForm.customer_email);
+      localStorage.setItem("last_order_id", String(order.id));
       showToast("Pesanan #" + order.id + " berhasil dibuat!");
       onClearCart();
       onOrderCreated(order);

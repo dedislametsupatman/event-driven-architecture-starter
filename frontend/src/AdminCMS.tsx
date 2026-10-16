@@ -87,6 +87,19 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Email SMTP Settings State
+  const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
+  const [smtpPort, setSmtpPort] = useState("587");
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [senderName, setSenderName] = useState("Supatman Store Official");
+  const [senderEmail, setSenderEmail] = useState("");
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [hasEmailPassword, setHasEmailPassword] = useState(false);
+  const [savingEmailSettings, setSavingEmailSettings] = useState(false);
+  const [testEmailAddress, setTestEmailAddress] = useState("");
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
+
   // Notification helper
   const showNotification = (msg: string, isErr = false) => {
     if (isErr) {
@@ -137,6 +150,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       fetchFinance();
     } else if (activeTab === "settings") {
       fetchAuthSettings();
+      fetchEmailSettings();
     }
   }, [activeTab, isAdminLoggedIn]);
 
@@ -166,6 +180,61 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       showNotification(err.message || "Gagal menyimpan pengaturan", true);
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const fetchEmailSettings = async () => {
+    try {
+      const s = await api.getEmailSettings();
+      setSmtpHost(s.smtp_host || "smtp.gmail.com");
+      setSmtpPort(s.smtp_port || "587");
+      setSmtpUser(s.smtp_user || "");
+      setSenderName(s.sender_name || "Supatman Store Official");
+      setSenderEmail(s.sender_email || "");
+      setEmailEnabled(s.email_enabled || false);
+      setHasEmailPassword(s.has_password || false);
+    } catch (err: any) {
+      console.error("Gagal memuat pengaturan email:", err);
+    }
+  };
+
+  const handleSaveEmailSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingEmailSettings(true);
+    try {
+      await api.updateEmailSettings({
+        smtp_host: smtpHost,
+        smtp_port: smtpPort,
+        smtp_user: smtpUser,
+        smtp_pass: smtpPass || undefined,
+        sender_name: senderName,
+        sender_email: senderEmail,
+        email_enabled: emailEnabled,
+      });
+      showNotification("Pengaturan Email SMTP berhasil disimpan!");
+      setSmtpPass("");
+      setHasEmailPassword(true);
+    } catch (err: any) {
+      showNotification(err.message || "Gagal menyimpan pengaturan email", true);
+    } finally {
+      setSavingEmailSettings(false);
+    }
+  };
+
+  const handleSendTestEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!testEmailAddress.trim()) {
+      showNotification("Masukkan alamat email tujuan tes", true);
+      return;
+    }
+    setSendingTestEmail(true);
+    try {
+      await api.sendTestEmail(testEmailAddress.trim());
+      showNotification(`Email tes berhasil dikirim ke ${testEmailAddress.trim()}!`);
+    } catch (err: any) {
+      showNotification(err.message || "Gagal mengirim email tes", true);
+    } finally {
+      setSendingTestEmail(false);
     }
   };
 
@@ -1472,6 +1541,178 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                   </button>
                 </div>
               </form>
+            </div>
+
+            {/* Section 2: Email SMTP Configuration */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shadow-xs">
+                  📧
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Pengaturan Notifikasi Email Konsumen (SMTP)</h2>
+                  <p className="text-xs text-slate-500">Kirim email otomatis kepada konsumen setiap ada pesanan baru, pembayaran lunas, dan pengiriman resi</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveEmailSettings} className="space-y-5 text-xs">
+                {/* Toggle Enable Email */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">Status Notifikasi Email</div>
+                    <div className="text-slate-500 mt-0.5">Aktifkan pengiriman email otomatis ke email konsumen saat status pesanan berubah</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={emailEnabled}
+                      onChange={(e) => setEmailEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* SMTP Host */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      SMTP Host *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={smtpHost}
+                      onChange={(e) => setSmtpHost(e.target.value)}
+                      placeholder="Contoh: smtp.gmail.com"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* SMTP Port */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      SMTP Port *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={smtpPort}
+                      onChange={(e) => setSmtpPort(e.target.value)}
+                      placeholder="587 (STARTTLS) atau 465 (SSL)"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* SMTP Username / Email */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Email Akun SMTP *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={smtpUser}
+                      onChange={(e) => setSmtpUser(e.target.value)}
+                      placeholder="nama.toko@gmail.com"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* SMTP Password / App Password */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Password Aplikasi SMTP {hasEmailPassword && "(Tersimpan)"}
+                    </label>
+                    <input
+                      type="password"
+                      value={smtpPass}
+                      onChange={(e) => setSmtpPass(e.target.value)}
+                      placeholder={hasEmailPassword ? "•••••••• (Ketik untuk mengganti)" : "Contoh: 16 karakter App Password"}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Sender Name */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Nama Pengirim Toko
+                    </label>
+                    <input
+                      type="text"
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      placeholder="Supatman Store Official"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Sender Email */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Alamat Email Pengirim (From)
+                    </label>
+                    <input
+                      type="email"
+                      value={senderEmail}
+                      onChange={(e) => setSenderEmail(e.target.value)}
+                      placeholder="noreply@supatmanstore.com (opsional)"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Petunjuk Gmail App Password */}
+                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-2 text-slate-700">
+                  <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                    <span>💡</span> Panduan Menggunakan Gmail SMTP:
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-slate-600 pl-1">
+                    <li>Buka <strong>myaccount.google.com/security</strong> dan pastikan <strong>Verifikasi 2 Langkah</strong> aktif.</li>
+                    <li>Buka menu <strong>Sandi Aplikasi</strong> (<em>App Passwords</em>) di Google Account Anda.</li>
+                    <li>Buat sandi baru untuk aplikasi (akan muncul 16 digit huruf, contoh: <code>abcd efgh ijkl mnop</code>).</li>
+                    <li>Salin dan masukkan 16 digit sandi tersebut ke kolom <strong>Password Aplikasi SMTP</strong> di atas.</li>
+                    <li>Gunakan <code>smtp.gmail.com</code> dan port <code>587</code>.</li>
+                  </ol>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingEmailSettings}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
+                  >
+                    {savingEmailSettings ? "Menyimpan..." : "Simpan Pengaturan Email"}
+                  </button>
+                </div>
+              </form>
+
+              {/* Tes Pengiriman Email */}
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">
+                  🧪 Tes Pengiriman Email
+                </h3>
+                <p className="text-[11px] text-slate-500 mb-3">
+                  Kirim email uji coba untuk memastikan kredensial SMTP dan koneksi server bekerja dengan sempurna.
+                </p>
+                <form onSubmit={handleSendTestEmail} className="flex gap-2 max-w-md">
+                  <input
+                    type="email"
+                    required
+                    placeholder="Masukkan email tujuan tes (contoh: email.anda@gmail.com)"
+                    value={testEmailAddress}
+                    onChange={(e) => setTestEmailAddress(e.target.value)}
+                    className="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sendingTestEmail}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {sendingTestEmail ? "Mengirim..." : "Kirim Tes"}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
         )}

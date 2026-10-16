@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   api,
   Product,
   Category,
   PaymentMethods,
   User,
+  InAppNotification,
 } from "./api";
 import { AdminCMS } from "./AdminCMS";
 import { OrdersPage } from "./OrdersPage";
@@ -25,6 +26,7 @@ import {
   EyeIcon,
   MagnifyingGlassIcon,
   TagIcon,
+  BellIcon,
 } from "@heroicons/react/24/outline";
 
 export type ViewMode = "store" | "cart" | "orders" | "profile" | "cms";
@@ -138,6 +140,88 @@ export default function App() {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3500);
   }
+
+  // Realtime In-App Notifications
+  const [notifications, setNotifications] = useState<InAppNotification[]>([]);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+  const prevNotificationIds = useRef<Set<number>>(new Set());
+  const isInitialNotificationsLoad = useRef(true);
+
+  // Close notification popover on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const email = currentUser?.email || localStorage.getItem("customer_email") || undefined;
+      const res = await api.getNotifications(email ? { email } : undefined);
+      const notifs = res.notifications || [];
+
+      // Detect new unread notification for realtime toast
+      if (!isInitialNotificationsLoad.current) {
+        for (const n of notifs) {
+          if (!n.is_read && !prevNotificationIds.current.has(n.id)) {
+            triggerToast(`🔔 ${n.title}: ${n.message}`);
+          }
+        }
+      } else {
+        isInitialNotificationsLoad.current = false;
+      }
+
+      const idSet = new Set<number>();
+      notifs.forEach((n) => idSet.add(n.id));
+      prevNotificationIds.current = idSet;
+
+      setNotifications(notifs);
+      setUnreadNotificationsCount(res.unread_count || 0);
+    } catch {
+      // Background polling silent fail
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 5000);
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  const handleNotificationClick = async (n: InAppNotification) => {
+    try {
+      if (!n.is_read) {
+        await api.markNotificationRead(n.id);
+        setNotifications((prev) =>
+          prev.map((item) => (item.id === n.id ? { ...item, is_read: true } : item))
+        );
+        setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setIsNotificationsOpen(false);
+    setActiveOrderId(n.order_id);
+    navigateTo("orders", `/orders?id=${n.order_id}`);
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      const email = currentUser?.email || localStorage.getItem("customer_email") || undefined;
+      await api.markAllNotificationsRead(email);
+      setNotifications((prev) => prev.map((item) => ({ ...item, is_read: true })));
+      setUnreadNotificationsCount(0);
+      triggerToast("Semua notifikasi ditandai sudah dibaca.");
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   async function loadProducts() {
     setLoading(true);
@@ -340,6 +424,112 @@ export default function App() {
               <TruckIcon className="w-4 h-4 text-blue-600" />
               <span className="hidden sm:inline">Riwayat Pesanan</span>
             </button>
+
+            {/* Realtime In-App Notifications Bell */}
+            <div className="relative" ref={notificationRef}>
+              <button
+                onClick={() => setIsNotificationsOpen((prev) => !prev)}
+                aria-label={`Notifikasi pesanan (${unreadNotificationsCount} belum dibaca)`}
+                className={`relative p-2 rounded-xl border transition-all flex items-center justify-center ${
+                  isNotificationsOpen
+                    ? "bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-100"
+                    : "text-slate-700 hover:text-slate-900 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                <BellIcon className="w-4 h-4 text-slate-600" />
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center ring-2 ring-white animate-pulse shadow-sm">
+                    {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notification Dropdown Popover */}
+              {isNotificationsOpen && (
+                <div className="absolute right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-slate-800">Notifikasi Pesanan</span>
+                      {unreadNotificationsCount > 0 && (
+                        <span className="bg-blue-100 text-blue-700 font-bold text-[10px] px-2 py-0.5 rounded-full">
+                          {unreadNotificationsCount} baru
+                        </span>
+                      )}
+                    </div>
+                    {unreadNotificationsCount > 0 && (
+                      <button
+                        onClick={handleMarkAllRead}
+                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        Tandai semua dibaca
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 px-4 text-center">
+                        <BellIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="text-xs text-slate-600 font-semibold">Belum ada notifikasi pesanan</p>
+                        <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                          Setiap ada perubahan status pesanan Anda (pembayaran diverifikasi, pesanan dikirim, resi diterbitkan), notifikasi realtime akan muncul di sini.
+                        </p>
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <button
+                          key={n.id}
+                          onClick={() => handleNotificationClick(n)}
+                          className={`w-full text-left p-3.5 hover:bg-blue-50/50 transition-colors flex items-start gap-3 ${
+                            !n.is_read ? "bg-blue-50/30" : ""
+                          }`}
+                        >
+                          <div className="mt-1 shrink-0">
+                            {!n.is_read ? (
+                              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 block ring-4 ring-blue-100"></span>
+                            ) : (
+                              <span className="w-2.5 h-2.5 rounded-full bg-slate-200 block"></span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1 mb-1">
+                              <span className="font-bold text-xs text-slate-800 truncate">{n.title}</span>
+                              <span className="text-[10px] text-slate-400 shrink-0">
+                                {new Date(n.created_at).toLocaleDateString("id-ID", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  day: "numeric",
+                                  month: "short",
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{n.message}</p>
+                            {n.tracking_number && (
+                              <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-mono text-slate-700">
+                                <TruckIcon className="w-3 h-3 text-slate-500" />
+                                <span>Resi: {n.tracking_number}</span>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                    <button
+                      onClick={() => {
+                        setIsNotificationsOpen(false);
+                        navigateTo("orders", "/orders");
+                      }}
+                      className="text-xs font-semibold text-slate-600 hover:text-blue-600"
+                    >
+                      Buka Riwayat Pesanan &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Profil / Akun Pengguna */}
             <button

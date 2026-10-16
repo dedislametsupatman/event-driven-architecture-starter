@@ -77,6 +77,29 @@ export interface User {
   created_at: string;
 }
 
+export interface InAppNotification {
+  id: number;
+  order_id: number;
+  customer_email: string;
+  title: string;
+  message: string;
+  status: string;
+  tracking_number?: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface EmailSettings {
+  smtp_host: string;
+  smtp_port: string;
+  smtp_user: string;
+  smtp_pass?: string;
+  sender_name: string;
+  sender_email: string;
+  email_enabled: boolean;
+  has_password?: boolean;
+}
+
 const API_BASE = "";
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -331,6 +354,46 @@ export const api = {
     return request<void>("/auth/settings", {
       method: "POST",
       body: JSON.stringify(data),
+    });
+  },
+
+  // In-App Realtime Notifications
+  async getNotifications(params?: { email?: string; order_id?: number }) {
+    const qs = new URLSearchParams();
+    if (params?.email) qs.set("email", params.email);
+    if (params?.order_id) qs.set("order_id", String(params.order_id));
+    return request<{ notifications: InAppNotification[]; unread_count: number }>(`/notifications?${qs.toString()}`);
+  },
+
+  async markNotificationRead(id: number) {
+    return request<void>(`/notifications/${id}/read`, {
+      method: "POST",
+    });
+  },
+
+  async markAllNotificationsRead(email?: string) {
+    return request<void>("/notifications/read-all", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  // Email Config & Testing (CMS)
+  async getEmailSettings() {
+    return request<EmailSettings>("/notification/email-settings");
+  },
+
+  async updateEmailSettings(data: EmailSettings) {
+    return request<EmailSettings>("/notification/email-settings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async sendTestEmail(targetEmail: string) {
+    return request<void>("/notification/test-email", {
+      method: "POST",
+      body: JSON.stringify({ target_email: targetEmail }),
     });
   },
 };
