@@ -7,7 +7,7 @@ interface AdminCMSProps {
 }
 
 export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) => {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "products" | "orders" | "finance">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "products" | "orders" | "finance" | "settings">("dashboard");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -82,6 +82,11 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
     }[];
   } | null>(null);
 
+  // Settings State
+  const [googleClientId, setGoogleClientId] = useState("");
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
   // Notification helper
   const showNotification = (msg: string, isErr = false) => {
     if (isErr) {
@@ -130,8 +135,39 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       fetchOrders();
     } else if (activeTab === "finance") {
       fetchFinance();
+    } else if (activeTab === "settings") {
+      fetchAuthSettings();
     }
   }, [activeTab, isAdminLoggedIn]);
+
+  const fetchAuthSettings = async () => {
+    setLoading(true);
+    try {
+      const s = await api.getAuthSettings();
+      setGoogleClientId(s.google_client_id || "");
+      setGoogleEnabled(s.google_enabled || false);
+    } catch (err: any) {
+      showNotification(err.message || "Gagal memuat pengaturan", true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveAuthSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    try {
+      await api.updateAuthSettings({
+        google_client_id: googleClientId,
+        google_enabled: googleEnabled,
+      });
+      showNotification("Pengaturan Login Google berhasil disimpan!");
+    } catch (err: any) {
+      showNotification(err.message || "Gagal menyimpan pengaturan", true);
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   const handleAdminLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -527,6 +563,16 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
               >
                 💳 Keuangan
               </button>
+              <button
+                onClick={() => setActiveTab("settings")}
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition ${
+                  activeTab === "settings"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                ⚙️ Pengaturan
+              </button>
             </nav>
 
             {/* Right: Actions */}
@@ -584,6 +630,14 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
             }`}
           >
             💳 Keuangan
+          </button>
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg whitespace-nowrap ${
+              activeTab === "settings" ? "bg-white text-blue-600 shadow-sm" : "text-slate-600"
+            }`}
+          >
+            ⚙️ Pengaturan
           </button>
         </div>
       </header>
@@ -1335,6 +1389,89 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======================= TAB: PENGATURAN (SETTINGS) ======================= */}
+        {activeTab === "settings" && (
+          <div className="max-w-3xl space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg shadow-xs">
+                  🔐
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Pengaturan Login Google (OAuth 2.0)</h2>
+                  <p className="text-xs text-slate-500">Konfigurasi Google Client ID untuk mengaktifkan login & pendaftaran instan menggunakan akun Google</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveAuthSettings} className="space-y-5 text-xs">
+                {/* Toggle Enable */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">Status Login Google</div>
+                    <div className="text-slate-500 mt-0.5">Tampilkan dan aktifkan tombol "Masuk dengan Google" pada form autentikasi</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={googleEnabled}
+                      onChange={(e) => setGoogleEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {/* Google Client ID input */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Google OAuth Client ID
+                  </label>
+                  <input
+                    type="text"
+                    value={googleClientId}
+                    onChange={(e) => setGoogleClientId(e.target.value)}
+                    placeholder="Contoh: 1234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1.5">
+                    Didapatkan dari Google Cloud Console pada menu APIs &amp; Services &gt; Credentials &gt; OAuth 2.0 Client IDs.
+                  </p>
+                </div>
+
+                {/* Step by step guide */}
+                <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2 text-slate-700">
+                  <div className="font-bold text-blue-900 flex items-center gap-1.5">
+                    <span>💡</span> Cara Membuat &amp; Memasang Google Client ID:
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-slate-600 pl-1">
+                    <li>Buka <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-blue-600 font-semibold underline">Google Cloud Console &gt; Credentials</a>.</li>
+                    <li>Klik <strong>+ Create Credentials</strong> &gt; pilih <strong>OAuth client ID</strong>.</li>
+                    <li>Pilih <em>Application type</em>: <strong>Web application</strong>.</li>
+                    <li>Pada kolom <strong>Authorized JavaScript origins</strong>, tambahkan URL toko Anda:
+                      <div className="mt-1 space-y-1">
+                        <code className="block font-mono bg-white px-2 py-1 rounded border border-blue-200 select-all">http://localhost:4000</code>
+                        <code className="block font-mono bg-white px-2 py-1 rounded border border-blue-200 select-all">https://staging-event-driven-architecture-starter-4s32.encr.app</code>
+                      </div>
+                    </li>
+                    <li>Klik <strong>Create</strong>, salin <strong>Client ID</strong> yang muncul, lalu tempelkan ke kolom di atas.</li>
+                    <li>Aktifkan toggle <strong>Status Login Google</strong> dan klik tombol <strong>Simpan Pengaturan Google</strong> di bawah.</li>
+                  </ol>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingSettings}
+                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
+                  >
+                    {savingSettings ? "Menyimpan..." : "Simpan Pengaturan Google"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

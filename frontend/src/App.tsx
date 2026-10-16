@@ -351,8 +351,47 @@ export default function App() {
   async function handleGoogleSignIn() {
     setGoogleLoading(true);
     try {
-      // Prompt user or use quick Google authentication
-      const emailInput = prompt("Masukkan email Google Anda (atau klik OK untuk menggunakan demo):", "user.google@gmail.com");
+      const settings = await api.getAuthSettings().catch(() => null);
+
+      // Jika Google Client ID sudah disetting dan Google SDK aktif di window
+      if (settings?.google_enabled && settings?.google_client_id && (window as any).google?.accounts?.id) {
+        (window as any).google.accounts.id.initialize({
+          client_id: settings.google_client_id,
+          callback: async (response: any) => {
+            try {
+              const base64Url = response.credential.split(".")[1];
+              const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+              const jsonPayload = decodeURIComponent(
+                atob(base64)
+                  .split("")
+                  .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                  .join("")
+              );
+              const payload = JSON.parse(jsonPayload);
+              const res = await api.googleLogin({
+                email: payload.email,
+                name: payload.name || payload.email.split("@")[0],
+                credential: response.credential,
+              });
+              localStorage.setItem("token", res.token);
+              setCurrentUser(res.user);
+              setIsAuthModalOpen(false);
+              triggerToast(`Berhasil masuk dengan Google: ${res.user.email}`);
+            } catch (err: any) {
+              alert(err.message || "Gagal memproses login Google");
+            }
+          },
+        });
+        (window as any).google.accounts.id.prompt();
+        setGoogleLoading(false);
+        return;
+      }
+
+      // Fallback jika Google Client ID belum disetel di /cms > Pengaturan
+      const emailInput = prompt(
+        "Tips: Anda dapat memasang Google Client ID resmi di /cms > Pengaturan.\n\nMasukkan email Google Anda untuk masuk instan:",
+        "user.google@gmail.com"
+      );
       if (emailInput === null) {
         setGoogleLoading(false);
         return;
@@ -523,10 +562,10 @@ export default function App() {
                 {currentUser.role === "admin" && (
                   <button
                     onClick={() => {
-                      setIsAdminPanelOpen(true);
-                      loadAdminOrders();
+                      window.history.pushState({}, "", "/cms");
+                      setViewMode("cms");
                     }}
-                    className="text-xs font-bold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center gap-1"
+                    className="text-xs font-bold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center gap-1 shadow-xs"
                   >
                     <span>Admin Panel</span>
                   </button>

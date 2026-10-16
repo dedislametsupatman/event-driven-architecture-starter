@@ -332,3 +332,56 @@ func verifyToken(token string) (*AuthData, error) {
 
 	return &data, nil
 }
+
+type AuthSettings struct {
+	GoogleClientID string `json:"google_client_id"`
+	GoogleEnabled  bool   `json:"google_enabled"`
+}
+
+// GetSettings returns public auth configuration (e.g. Google Client ID).
+//
+//encore:api public method=GET path=/auth/settings
+func GetSettings(ctx context.Context) (*AuthSettings, error) {
+	var s AuthSettings
+	var enabledStr string
+	_ = db.QueryRow(ctx, `SELECT value FROM auth_settings WHERE key = 'google_client_id'`).Scan(&s.GoogleClientID)
+	_ = db.QueryRow(ctx, `SELECT value FROM auth_settings WHERE key = 'google_enabled'`).Scan(&enabledStr)
+	s.GoogleEnabled = enabledStr == "true"
+	return &s, nil
+}
+
+// UpdateSettings updates auth integration settings (admin only).
+//
+//encore:api auth method=POST path=/auth/settings
+func UpdateSettings(ctx context.Context, p *AuthSettings) error {
+	usr, err := Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	enabledStr := "false"
+	if p.GoogleEnabled {
+		enabledStr = "true"
+	}
+
+	_, err = db.Exec(ctx, `
+		INSERT INTO auth_settings (key, value, updated_at)
+		VALUES ('google_client_id', $1, NOW())
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+	`, strings.TrimSpace(p.GoogleClientID))
+	if err != nil {
+		return &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	_, err = db.Exec(ctx, `
+		INSERT INTO auth_settings (key, value, updated_at)
+		VALUES ('google_enabled', $1, NOW())
+		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+	`, enabledStr)
+	if err != nil {
+		return &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	return nil
+}
+

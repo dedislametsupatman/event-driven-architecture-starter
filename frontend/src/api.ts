@@ -304,6 +304,17 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
+
+  async getAuthSettings() {
+    return request<{ google_client_id: string; google_enabled: boolean }>("/auth/settings");
+  },
+
+  async updateAuthSettings(data: { google_client_id: string; google_enabled: boolean }) {
+    return request<void>("/auth/settings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };
 
 
