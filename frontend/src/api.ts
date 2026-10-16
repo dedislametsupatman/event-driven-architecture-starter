@@ -366,8 +366,9 @@ export const api = {
   },
 
   async markNotificationRead(id: number) {
-    return request<void>(`/notifications/${id}/read`, {
+    return request<void>("/notifications/read", {
       method: "POST",
+      body: JSON.stringify({ id }),
     });
   },
 

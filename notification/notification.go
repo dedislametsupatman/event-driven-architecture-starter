@@ -280,23 +280,31 @@ func GetNotifications(ctx context.Context, p *GetNotificationsParams) (*GetNotif
 	return &GetNotificationsResponse{Notifications: list, UnreadCount: unread}, nil
 }
 
+type MarkReadParams struct {
+	ID    int64  `json:"id,omitempty"`
+	Email string `json:"email,omitempty"`
+}
+
 // MarkNotificationRead marks a specific notification as read.
 //
-//encore:api public method=POST path=/notifications/:id/read
-func MarkNotificationRead(ctx context.Context, id int64) error {
-	_, err := db.Exec(ctx, `UPDATE in_app_notifications SET is_read = TRUE WHERE id = $1`, id)
-	return err
+//encore:api public method=POST path=/notifications/read
+func MarkNotificationRead(ctx context.Context, p *MarkReadParams) error {
+	if p != nil && p.ID > 0 {
+		_, err := db.Exec(ctx, `UPDATE in_app_notifications SET is_read = TRUE WHERE id = $1`, p.ID)
+		return err
+	}
+	return nil
 }
 
 // MarkAllNotificationsRead marks all notifications as read for an email.
 //
 //encore:api public method=POST path=/notifications/read-all
-func MarkAllNotificationsRead(ctx context.Context, p *GetNotificationsParams) error {
+func MarkAllNotificationsRead(ctx context.Context, p *MarkReadParams) error {
 	var targetEmail string
 	if usr, err := auth.Me(ctx); err == nil && usr != nil {
 		targetEmail = usr.Email
-	} else if p.CustomerEmail != "" {
-		targetEmail = strings.TrimSpace(p.CustomerEmail)
+	} else if p != nil && p.Email != "" {
+		targetEmail = strings.TrimSpace(p.Email)
 	}
 
 	if targetEmail == "" {
