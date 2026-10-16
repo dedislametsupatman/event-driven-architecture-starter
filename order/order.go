@@ -379,6 +379,212 @@ func CancelExpiredOrders(ctx context.Context) error {
 	return nil
 }
 
+type DailyRevenuePoint struct {
+	Date    string `json:"date"`
+	Revenue int64  `json:"revenue"`
+	Orders  int    `json:"orders"`
+}
+
+type MethodBreakdown struct {
+	Method string `json:"method"`
+	Total  int64  `json:"total"`
+	Count  int    `json:"count"`
+}
+
+type DashboardStatsResponse struct {
+	TotalRevenue     int64                `json:"total_revenue"`
+	TodayRevenue     int64                `json:"today_revenue"`
+	ThisMonthRevenue int64                `json:"this_month_revenue"`
+	PendingRevenue   int64                `json:"pending_revenue"`
+	TotalOrders      int64                `json:"total_orders"`
+	PendingOrders    int64                `json:"pending_orders"`
+	PaidOrders       int64                `json:"paid_orders"`
+	ShippedOrders    int64                `json:"shipped_orders"`
+	CompletedOrders  int64                `json:"completed_orders"`
+	CancelledOrders  int64                `json:"cancelled_orders"`
+	RecentOrders     []*Order             `json:"recent_orders"`
+	DailyRevenue     []*DailyRevenuePoint `json:"daily_revenue"`
+	PaymentBreakdown []*MethodBreakdown   `json:"payment_breakdown"`
+}
+
+// AdminDashboard returns full overview metrics for store dashboard (admin only).
+//
+//encore:api auth method=GET path=/admin/dashboard
+func AdminDashboard(ctx context.Context) (*DashboardStatsResponse, error) {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	var s DashboardStatsResponse
+
+	// Overall revenue and counts
+	err = db.QueryRow(ctx, `
+		SELECT 
+			COALESCE(SUM(grand_total) FILTER (WHERE status IN ('paid', 'processing', 'shipped', 'completed')), 0),
+			COALESCE(SUM(grand_total) FILTER (WHERE status IN ('paid', 'processing', 'shipped', 'completed') AND created_at >= CURRENT_DATE), 0),
+			COALESCE(SUM(grand_total) FILTER (WHERE status IN ('paid', 'processing', 'shipped', 'completed') AND created_at >= DATE_TRUNC('month', CURRENT_DATE)), 0),
+			COALESCE(SUM(grand_total) FILTER (WHERE status = 'pending'), 0),
+			COUNT(*),
+			COUNT(*) FILTER (WHERE status = 'pending'),
+			COUNT(*) FILTER (WHERE status = 'paid'),
+			COUNT(*) FILTER (WHERE status = 'shipped'),
+			COUNT(*) FILTER (WHERE status = 'completed'),
+			COUNT(*) FILTER (WHERE status = 'cancelled')
+		FROM orders
+	`).Scan(
+		&s.TotalRevenue, &s.TodayRevenue, &s.ThisMonthRevenue, &s.PendingRevenue,
+		&s.TotalOrders, &s.PendingOrders, &s.PaidOrders, &s.ShippedOrders,
+		&s.CompletedOrders, &s.CancelledOrders,
+	)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	// 7 days daily revenue
+	dayRows, err := db.Query(ctx, `
+		SELECT TO_CHAR(d.day, 'YYYY-MM-DD'), COALESCE(SUM(o.grand_total), 0), COUNT(o.id)
+		FROM (
+			SELECT (CURRENT_DATE - (i || ' days')::interval)::date AS day
+			FROM generate_series(6, 0, -1) AS i
+		) d
+		LEFT JOIN orders o ON DATE(o.created_at) = d.day AND o.status IN ('paid', 'processing', 'shipped', 'completed')
+		GROUP BY d.day
+		ORDER BY d.day ASC
+	`)
+	if err == nil {
+		defer dayRows.Close()
+		for dayRows.Next() {
+			var dp DailyRevenuePoint
+			if err := dayRows.Scan(&dp.Date, &dp.Revenue, &dp.Orders); err == nil {
+				s.DailyRevenue = append(s.DailyRevenue, &dp)
+			}
+		}
+	}
+
+	// Payment breakdown
+	pbRows, err := db.Query(ctx, `
+		SELECT payment_method, COALESCE(SUM(grand_total), 0), COUNT(*)
+		FROM orders
+		WHERE status IN ('paid', 'processing', 'shipped', 'completed')
+		GROUP BY payment_method
+		ORDER BY SUM(grand_total) DESC
+	`)
+	if err == nil {
+		defer pbRows.Close()
+		for pbRows.Next() {
+			var mb MethodBreakdown
+			if err := pbRows.Scan(&mb.Method, &mb.Total, &mb.Count); err == nil {
+				s.PaymentBreakdown = append(s.PaymentBreakdown, &mb)
+			}
+		}
+	}
+
+	// Recent 10 orders
+	recRows, err := db.Query(ctx, `
+		SELECT id, user_id, customer_name, customer_email, customer_phone,
+		       shipping_address, city, postal_code, total_amount, shipping_cost,
+		       grand_total, status, payment_method, payment_proof_url, tracking_number,
+		       is_digital_only, created_at, updated_at
+		FROM orders
+		ORDER BY id DESC LIMIT 10
+	`)
+	if err == nil {
+		defer recRows.Close()
+		for recRows.Next() {
+			var ord Order
+			if err := recRows.Scan(
+				&ord.ID, &ord.UserID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
+				&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost,
+				&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.PaymentProofURL, &ord.TrackingNumber,
+				&ord.IsDigitalOnly, &ord.CreatedAt, &ord.UpdatedAt,
+			); err == nil {
+				s.RecentOrders = append(s.RecentOrders, &ord)
+			}
+		}
+	}
+
+	return &s, nil
+}
+
+type FinanceTransaction struct {
+	ID            int64     `json:"id"`
+	CustomerName  string    `json:"customer_name"`
+	CustomerEmail string    `json:"customer_email"`
+	PaymentMethod string    `json:"payment_method"`
+	Amount        int64     `json:"amount"`
+	ShippingCost  int64     `json:"shipping_cost"`
+	Status        string    `json:"status"`
+	ProofURL      string    `json:"proof_url,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+type FinanceSummaryResponse struct {
+	TotalSettledRevenue int64                 `json:"total_settled_revenue"`
+	TotalPendingRevenue int64                 `json:"total_pending_revenue"`
+	TotalTransactions   int64                 `json:"total_transactions"`
+	MethodBreakdown     []*MethodBreakdown    `json:"method_breakdown"`
+	RecentTransactions  []*FinanceTransaction `json:"recent_transactions"`
+}
+
+// AdminFinance returns detailed financial accounting metrics (admin only).
+//
+//encore:api auth method=GET path=/admin/finance
+func AdminFinance(ctx context.Context) (*FinanceSummaryResponse, error) {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	var res FinanceSummaryResponse
+
+	err = db.QueryRow(ctx, `
+		SELECT 
+			COALESCE(SUM(grand_total) FILTER (WHERE status IN ('paid', 'processing', 'shipped', 'completed')), 0),
+			COALESCE(SUM(grand_total) FILTER (WHERE status = 'pending'), 0),
+			COUNT(*) FILTER (WHERE status IN ('paid', 'processing', 'shipped', 'completed'))
+		FROM orders
+	`).Scan(&res.TotalSettledRevenue, &res.TotalPendingRevenue, &res.TotalTransactions)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	// Method breakdown
+	mbRows, err := db.Query(ctx, `
+		SELECT payment_method, COALESCE(SUM(grand_total), 0), COUNT(*)
+		FROM orders
+		GROUP BY payment_method
+		ORDER BY SUM(grand_total) DESC
+	`)
+	if err == nil {
+		defer mbRows.Close()
+		for mbRows.Next() {
+			var mb MethodBreakdown
+			if err := mbRows.Scan(&mb.Method, &mb.Total, &mb.Count); err == nil {
+				res.MethodBreakdown = append(res.MethodBreakdown, &mb)
+			}
+		}
+	}
+
+	// Recent 30 transactions
+	tRows, err := db.Query(ctx, `
+		SELECT id, customer_name, customer_email, payment_method, grand_total, shipping_cost, status, COALESCE(payment_proof_url, ''), created_at
+		FROM orders
+		ORDER BY id DESC LIMIT 30
+	`)
+	if err == nil {
+		defer tRows.Close()
+		for tRows.Next() {
+			var ft FinanceTransaction
+			if err := tRows.Scan(&ft.ID, &ft.CustomerName, &ft.CustomerEmail, &ft.PaymentMethod, &ft.Amount, &ft.ShippingCost, &ft.Status, &ft.ProofURL, &ft.CreatedAt); err == nil {
+				res.RecentTransactions = append(res.RecentTransactions, &ft)
+			}
+		}
+	}
+
+	return &res, nil
+}
+
 // Cron job to run CancelExpiredOrders every 15 minutes
 var _ = cron.NewJob("cancel-unpaid-orders", cron.JobConfig{
 	Title:    "Cancel Unpaid Orders",

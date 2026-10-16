@@ -7,6 +7,7 @@ import {
   PaymentMethods,
   User,
 } from "./api";
+import { AdminCMS } from "./AdminCMS";
 import {
   ShoppingBagIcon,
   XMarkIcon,
@@ -38,6 +39,7 @@ interface CartItem {
 }
 
 export default function App() {
+  const [viewMode, setViewMode] = useState<"store" | "cms">("store");
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -407,6 +409,10 @@ export default function App() {
     }).format(amount);
   }
 
+  if (viewMode === "cms") {
+    return <AdminCMS onBackToStore={() => setViewMode("store")} userRole={currentUser?.role} />;
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc] text-slate-900 antialiased">
       {/* Toast Notification */}
@@ -464,6 +470,15 @@ export default function App() {
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2.5">
+            {/* CMS Admin Portal Button */}
+            <button
+              onClick={() => setViewMode("cms")}
+              className="text-xs font-bold px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition-all flex items-center gap-1.5 shadow-sm"
+            >
+              <span>⚙️</span>
+              <span>Admin CMS</span>
+            </button>
+
             {/* Track Order Button */}
             <button
               onClick={() => setIsTrackingModalOpen(true)}

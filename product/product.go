@@ -236,6 +236,96 @@ func Create(ctx context.Context, p *CreateProductParams) (*Product, error) {
 	return &pr, nil
 }
 
+// Update modifies an existing product (admin only).
+//
+//encore:api auth method=PUT path=/products/:id
+func Update(ctx context.Context, id int64, p *CreateProductParams) (*Product, error) {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	slug := slugify(p.Name)
+	if p.WeightGrams <= 0 && !p.IsDigital {
+		p.WeightGrams = 500
+	}
+
+	var pr Product
+	err = db.QueryRow(ctx, `
+		UPDATE products
+		SET name = $1, slug = $2, description = $3, price = $4, stock = $5,
+		    is_digital = $6, digital_file_url = $7, weight_grams = $8, image_url = $9,
+		    category_id = $10, updated_at = NOW()
+		WHERE id = $11
+		RETURNING id, name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, category_id, created_at, updated_at
+	`, p.Name, slug, p.Description, p.Price, p.Stock, p.IsDigital, p.DigitalFileURL, p.WeightGrams, p.ImageURL, p.CategoryID, id).Scan(
+		&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
+		&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+		&pr.CreatedAt, &pr.UpdatedAt,
+	)
+	if errors.Is(err, sqldb.ErrNoRows) {
+		return nil, &errs.Error{Code: errs.NotFound, Message: "Product not found"}
+	} else if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	return &pr, nil
+}
+
+type SetStockParams struct {
+	Stock int `json:"stock"`
+}
+
+// SetStock sets product stock level directly (admin only).
+//
+//encore:api auth method=POST path=/products/:id/stock
+func SetStock(ctx context.Context, id int64, p *SetStockParams) error {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+	if p.Stock < 0 {
+		return &errs.Error{Code: errs.InvalidArgument, Message: "Stock cannot be negative"}
+	}
+
+	res, err := db.Exec(ctx, `UPDATE products SET stock = $1, updated_at = NOW() WHERE id = $2`, p.Stock, id)
+	if err != nil {
+		return &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+	if res.RowsAffected() == 0 {
+		return &errs.Error{Code: errs.NotFound, Message: "Product not found"}
+	}
+	return nil
+}
+
+type ProductStatsResponse struct {
+	TotalProducts     int64 `json:"total_products"`
+	OutOfStockCount   int64 `json:"out_of_stock_count"`
+	LowStockCount     int64 `json:"low_stock_count"`
+	DigitalCount      int64 `json:"digital_count"`
+	PhysicalCount     int64 `json:"physical_count"`
+}
+
+// Stats returns product inventory summary stats.
+//
+//encore:api public method=GET path=/admin/product-stats
+func Stats(ctx context.Context) (*ProductStatsResponse, error) {
+	var s ProductStatsResponse
+	row := db.QueryRow(ctx, `
+		SELECT 
+			COUNT(*),
+			COUNT(*) FILTER (WHERE stock = 0 AND is_digital = FALSE),
+			COUNT(*) FILTER (WHERE stock > 0 AND stock <= 5 AND is_digital = FALSE),
+			COUNT(*) FILTER (WHERE is_digital = TRUE),
+			COUNT(*) FILTER (WHERE is_digital = FALSE)
+		FROM products
+	`)
+	if err := row.Scan(&s.TotalProducts, &s.OutOfStockCount, &s.LowStockCount, &s.DigitalCount, &s.PhysicalCount); err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+	return &s, nil
+}
+
 // Delete removes a product by ID (admin only).
 //
 //encore:api auth method=DELETE path=/products/:id
@@ -275,3 +365,4 @@ func slugify(s string) string {
 	}
 	return s
 }
+

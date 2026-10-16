@@ -217,6 +217,13 @@ export const api = {
     });
   },
 
+  async adminLogin(data?: { email?: string; password?: string }) {
+    return request<{ token: string; user: User }>("/auth/admin-login", {
+      method: "POST",
+      body: JSON.stringify(data || {}),
+    });
+  },
+
   async googleLogin(data: { email: string; name?: string; credential?: string }) {
     return request<{ token: string; user: User }>("/auth/google", {
       method: "POST",
@@ -227,4 +234,68 @@ export const api = {
   async getMe() {
     return request<User>("/auth/me");
   },
+
+  // CMS & Admin Management
+  async updateProduct(id: number, data: Partial<Product>) {
+    return request<Product>(`/products/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async setStock(id: number, stock: number) {
+    return request<void>(`/products/${id}/stock`, {
+      method: "POST",
+      body: JSON.stringify({ stock }),
+    });
+  },
+
+  async getProductStats() {
+    return request<{
+      total_products: number;
+      out_of_stock_count: number;
+      low_stock_count: number;
+      digital_count: number;
+      physical_count: number;
+    }>("/admin/product-stats");
+  },
+
+  async getAdminDashboard() {
+    return request<{
+      total_revenue: number;
+      today_revenue: number;
+      this_month_revenue: number;
+      pending_revenue: number;
+      total_orders: number;
+      pending_orders: number;
+      paid_orders: number;
+      shipped_orders: number;
+      completed_orders: number;
+      cancelled_orders: number;
+      recent_orders: Order[];
+      daily_revenue: { date: string; revenue: number; orders: number }[];
+      payment_breakdown: { method: string; total: number; count: number }[];
+    }>("/admin/dashboard");
+  },
+
+  async getAdminFinance() {
+    return request<{
+      total_settled_revenue: number;
+      total_pending_revenue: number;
+      total_transactions: number;
+      method_breakdown: { method: string; total: number; count: number }[];
+      recent_transactions: {
+        id: number;
+        customer_name: string;
+        customer_email: string;
+        payment_method: string;
+        amount: number;
+        shipping_cost: number;
+        status: string;
+        proof_url?: string;
+        created_at: string;
+      }[];
+    }>("/admin/finance");
+  },
 };
+
