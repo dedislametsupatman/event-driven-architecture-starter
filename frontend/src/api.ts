@@ -397,6 +397,29 @@ export const api = {
       body: JSON.stringify({ target_email: targetEmail }),
     });
   },
+
+  // Store Profile & Branding Config (CMS)
+  async getStoreSettings() {
+    return request<StoreSettings>("/store/settings");
+  },
+
+  async updateStoreSettings(data: StoreSettings) {
+    return request<StoreSettings>("/store/settings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };
+
+export interface StoreSettings {
+  store_name: string;
+  store_tagline: string;
+  store_logo_url: string;
+  store_badge: string;
+  store_phone: string;
+  store_address: string;
+  store_announcement: string;
+}
+
 
 

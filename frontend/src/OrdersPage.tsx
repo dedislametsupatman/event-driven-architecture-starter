@@ -4,6 +4,7 @@ import {
   Order,
   PaymentMethods,
   User,
+  StoreSettings,
 } from "./api";
 import {
   TruckIcon,
@@ -23,6 +24,9 @@ import {
   ArrowTopRightOnSquareIcon,
   PhotoIcon,
   ArrowUpTrayIcon,
+  PrinterIcon,
+  ShareIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 
 interface OrdersPageProps {
@@ -31,6 +35,7 @@ interface OrdersPageProps {
   initialOrderId?: number | string | null;
   onNavigate: (view: "store" | "cart" | "orders" | "profile" | "cms", path: string) => void;
   showToast: (msg: string) => void;
+  storeSettings?: StoreSettings;
 }
 
 export function OrdersPage({
@@ -39,6 +44,7 @@ export function OrdersPage({
   initialOrderId,
   onNavigate,
   showToast,
+  storeSettings,
 }: OrdersPageProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -48,6 +54,10 @@ export function OrdersPage({
   const [searchError, setSearchError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  // Invoice & Share State
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+
   // Upload proof state
   const [proofUrl, setProofUrl] = useState("");
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -56,6 +66,39 @@ export function OrdersPage({
   const [uploadingProof, setUploadingProof] = useState(false);
   const [proofSuccess, setProofSuccess] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleShareWhatsapp = (order: Order) => {
+    const store = storeSettings?.store_name || "SUPATMAN STORE";
+    const orderUrl = `${window.location.origin}/orders?id=${order.id}`;
+    const text = `*INVOICE PESANAN #${order.id}*\n` +
+      `Toko: *${store}*\n` +
+      `Pelanggan: ${order.customer_name}\n` +
+      `Total: ${formatIDR(order.total_amount)}\n` +
+      `Status: ${order.status.toUpperCase()}\n` +
+      `Metode: ${order.payment_method}\n\n` +
+      `🔗 Lihat Detail & Lacak Pesanan:\n${orderUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const handleCopyInvoiceLink = (order: Order) => {
+    const orderUrl = `${window.location.origin}/orders?id=${order.id}`;
+    navigator.clipboard.writeText(orderUrl);
+    showToast("Tautan invoice pesanan berhasil disalin ke clipboard!");
+  };
+
+  const handleTriggerShare = (order: Order) => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      navigator.share({
+        title: `Invoice Pesanan #${order.id} - ${storeSettings?.store_name || "SUPATMAN STORE"}`,
+        text: `Invoice Pesanan #${order.id} (${formatIDR(order.total_amount)}) di ${storeSettings?.store_name || "SUPATMAN STORE"}`,
+        url: `${window.location.origin}/orders?id=${order.id}`,
+      }).catch(() => {
+        setShowShareModal(true);
+      });
+    } else {
+      setShowShareModal(true);
+    }
+  };
 
   // Load user orders or initial order
   useEffect(() => {
@@ -288,7 +331,7 @@ export function OrdersPage({
       {selectedOrder ? (
         /* DETAIL PESANAN TERPILIH (Dedicated Page View) */
         <div className="mt-8 space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <button
               onClick={() => setSelectedOrder(null)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all shadow-xs"
@@ -297,13 +340,36 @@ export function OrdersPage({
               Lihat Semua Pesanan Saya
             </button>
 
-            <button
-              onClick={() => loadSpecificOrder(selectedOrder.id)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:text-blue-600 transition-all"
-            >
-              <ArrowPathIcon className="w-3.5 h-3.5" />
-              Segarkan Status
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Tombol Cetak Invoice */}
+              <button
+                onClick={() => setShowInvoiceModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-all shadow-xs"
+                title="Cetak Faktur / Simpan PDF"
+              >
+                <PrinterIcon className="w-4 h-4 text-slate-500" />
+                <span>Cetak Invoice</span>
+              </button>
+
+              {/* Tombol Bagikan Invoice */}
+              <button
+                onClick={() => handleTriggerShare(selectedOrder)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-blue-200 bg-blue-50 text-xs font-bold text-blue-700 hover:bg-blue-100 transition-all shadow-xs"
+                title="Bagikan Tautan atau via WhatsApp"
+              >
+                <ShareIcon className="w-4 h-4 text-blue-600" />
+                <span>Bagikan</span>
+              </button>
+
+              {/* Segarkan Status */}
+              <button
+                onClick={() => loadSpecificOrder(selectedOrder.id)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:text-blue-600 transition-all"
+              >
+                <ArrowPathIcon className="w-3.5 h-3.5" />
+                <span>Segarkan Status</span>
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -877,6 +943,321 @@ export function OrdersPage({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ================= MODAL: SHARE INVOICE ================= */}
+      {showShareModal && selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-scale-up space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <ShareIcon className="w-4 h-4" />
+                </div>
+                <h3 className="font-extrabold text-slate-900 text-sm">Bagikan Invoice Pesanan</h3>
+              </div>
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500">
+              Bagikan detail atau bukti pesanan <strong>#ORDER-{selectedOrder.id}</strong> kepada konsumen atau kolega:
+            </p>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-[11px] text-slate-600 space-y-1">
+              <div><strong>Pesanan:</strong> #ORDER-{selectedOrder.id}</div>
+              <div><strong>Toko:</strong> {storeSettings?.store_name || "SUPATMAN STORE"}</div>
+              <div><strong>Pelanggan:</strong> {selectedOrder.customer_name}</div>
+              <div><strong>Total:</strong> {formatIDR(selectedOrder.total_amount)}</div>
+              <div><strong>Status:</strong> {selectedOrder.status.toUpperCase()}</div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  handleShareWhatsapp(selectedOrder);
+                  setShowShareModal(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all"
+              >
+                <span>💬 Bagikan via WhatsApp</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  handleCopyInvoiceLink(selectedOrder);
+                  setShowShareModal(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all"
+              >
+                <DocumentDuplicateIcon className="w-4 h-4 text-slate-500" />
+                <span>Salin Tautan Invoice</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowShareModal(false);
+                  setShowInvoiceModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs transition-all"
+              >
+                <PrinterIcon className="w-4 h-4 text-blue-600" />
+                <span>Buka &amp; Cetak Faktur Resmi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL: CETAK / LIHAT INVOICE RESMI ================= */}
+      {showInvoiceModal && selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto animate-scale-up">
+            {/* Top Toolbar (No-Print) */}
+            <div className="no-print bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                <span className="font-heading font-bold text-sm tracking-tight">Dokumen Faktur Penjualan</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-xs transition-all"
+                >
+                  <PrinterIcon className="w-4 h-4" />
+                  <span>Cetak / Unduh PDF</span>
+                </button>
+                <button
+                  onClick={() => handleShareWhatsapp(selectedOrder)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs transition-all"
+                >
+                  <span>WhatsApp</span>
+                </button>
+                <button
+                  onClick={() => handleCopyInvoiceLink(selectedOrder)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-all"
+                  title="Salin Tautan"
+                >
+                  <DocumentDuplicateIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setShowInvoiceModal(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all ml-1"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Document Body (Printable Area) */}
+            <div id="printable-invoice" className="p-8 sm:p-12 text-slate-800 font-mono text-xs bg-white">
+              {/* Invoice Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start gap-6 pb-6 border-b-2 border-slate-900">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-3">
+                    {storeSettings?.store_logo_url ? (
+                      <img
+                        src={storeSettings.store_logo_url}
+                        alt={storeSettings.store_name}
+                        className="w-10 h-10 rounded-xl object-contain border border-slate-200 p-0.5"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm">
+                        📦
+                      </div>
+                    )}
+                    <div>
+                      <h1 className="font-heading font-black text-lg text-slate-900 tracking-tight">
+                        {storeSettings?.store_name || "SUPATMAN STORE"}
+                      </h1>
+                      {storeSettings?.store_tagline && (
+                        <p className="text-[11px] text-slate-500 font-sans">
+                          {storeSettings.store_tagline}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {storeSettings?.store_address && (
+                    <p className="text-[11px] text-slate-500 max-w-sm pt-1">
+                      {storeSettings.store_address}
+                    </p>
+                  )}
+                  {storeSettings?.store_phone && (
+                    <p className="text-[11px] text-slate-500">
+                      Kontak: {storeSettings.store_phone}
+                    </p>
+                  )}
+                </div>
+
+                <div className="text-left sm:text-right space-y-1">
+                  <div className="inline-block px-3 py-1 bg-slate-100 rounded-lg font-bold text-slate-900 text-xs tracking-wider uppercase mb-1">
+                    FAKTUR PENJUALAN
+                  </div>
+                  <div className="text-base font-black text-slate-900">
+                    #INV-{selectedOrder.id}-{new Date(selectedOrder.created_at).getTime().toString().slice(-4)}
+                  </div>
+                  <div className="text-slate-500 text-[11px]">
+                    Tanggal: {new Date(selectedOrder.created_at).toLocaleString("id-ID")}
+                  </div>
+                  <div className="pt-1">
+                    <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                      selectedOrder.status === "completed" || selectedOrder.status === "paid" || selectedOrder.status === "processing" || selectedOrder.status === "shipped"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                        : selectedOrder.status === "cancelled"
+                        ? "bg-rose-100 text-rose-800 border border-rose-300"
+                        : "bg-amber-100 text-amber-800 border border-amber-300"
+                    }`}>
+                      {selectedOrder.status === "completed" || selectedOrder.status === "paid" || selectedOrder.status === "processing" || selectedOrder.status === "shipped"
+                        ? "STATUS: LUNAS"
+                        : selectedOrder.status === "cancelled"
+                        ? "STATUS: DIBATALKAN"
+                        : "STATUS: MENUNGGU PEMBAYARAN"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer & Order Metadata */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 py-6 border-b border-slate-200">
+                <div>
+                  <h4 className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1.5">
+                    DITAGIHKAN KEPADA:
+                  </h4>
+                  <p className="font-bold text-slate-900 text-sm">{selectedOrder.customer_name}</p>
+                  <p className="text-slate-600">{selectedOrder.customer_email}</p>
+                  {selectedOrder.customer_phone && (
+                    <p className="text-slate-600">{selectedOrder.customer_phone}</p>
+                  )}
+                </div>
+
+                <div className="sm:text-right">
+                  <h4 className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1.5">
+                    METODE &amp; PENGIRIMAN:
+                  </h4>
+                  <p className="font-bold text-slate-900 uppercase">
+                    {selectedOrder.payment_method.replace("_", " ")}
+                  </p>
+                  <p className="text-slate-600">
+                    {selectedOrder.is_digital_only
+                      ? "Aset Digital (Unduhan Instan)"
+                      : selectedOrder.shipping_address || "Pengiriman Standar"}
+                  </p>
+                  {selectedOrder.tracking_number && (
+                    <p className="text-emerald-700 font-bold mt-1">
+                      No. Resi: {selectedOrder.tracking_number}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Products Table */}
+              <div className="py-6">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-slate-900 text-slate-400 text-[10px] uppercase font-bold">
+                      <th className="py-2">No</th>
+                      <th className="py-2">Item Produk</th>
+                      <th className="py-2 text-center">Tipe</th>
+                      <th className="py-2 text-center">Qty</th>
+                      <th className="py-2 text-right">Harga Satuan</th>
+                      <th className="py-2 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                      selectedOrder.items.map((item, idx) => (
+                        <tr key={item.id} className="py-3">
+                          <td className="py-3 text-slate-400">{idx + 1}</td>
+                          <td className="py-3 font-bold text-slate-900">{item.product_name}</td>
+                          <td className="py-3 text-center">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
+                              {item.is_digital ? "Digital" : "Fisik"}
+                            </span>
+                          </td>
+                          <td className="py-3 text-center num-tabular">{item.quantity}</td>
+                          <td className="py-3 text-right num-tabular">{formatIDR(item.price)}</td>
+                          <td className="py-3 text-right font-bold text-slate-900 num-tabular">
+                            {formatIDR(item.price * item.quantity)}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="py-4 text-center text-slate-400">
+                          Tidak ada rincian item
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Financial Calculation */}
+              <div className="pt-4 border-t-2 border-slate-900 flex justify-end">
+                <div className="w-full sm:w-72 space-y-2">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Subtotal Produk:</span>
+                    <span className="num-tabular font-bold">{formatIDR(selectedOrder.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Ongkos Kirim:</span>
+                    <span className="num-tabular">
+                      {selectedOrder.shipping_cost > 0 ? formatIDR(selectedOrder.shipping_cost) : "Gratis / Rp 0"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-slate-900 font-black text-sm pt-2 border-t border-slate-200">
+                    <span>TOTAL TAGIHAN:</span>
+                    <span className="num-tabular text-blue-700">{formatIDR(selectedOrder.grand_total)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Official Stamp & Footer Note */}
+              <div className="mt-10 pt-6 border-t border-dashed border-slate-300 flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-slate-500">
+                <div>
+                  <p className="font-bold text-slate-800">Catatan Toko:</p>
+                  <p>Terima kasih telah berbelanja di {storeSettings?.store_name || "SUPATMAN STORE"}.</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Faktur ini sah dan diproses otomatis oleh sistem e-commerce tanpa tanda tangan basah.
+                  </p>
+                </div>
+
+                <div className="text-center sm:text-right border border-slate-300 rounded-xl p-3 bg-slate-50">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                    VERIFIKASI SISTEM
+                  </span>
+                  <span className="font-bold text-emerald-700 block">
+                    ✓ TERDAFTAR RESMI
+                  </span>
+                  <span className="text-[9px] text-slate-400 font-mono">
+                    ID #{selectedOrder.id}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions (No-Print) */}
+            <div className="no-print bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowInvoiceModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-xs font-semibold text-slate-700 transition"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              >
+                <PrinterIcon className="w-4 h-4" />
+                <span>Cetak Faktur</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

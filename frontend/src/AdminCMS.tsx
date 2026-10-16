@@ -87,6 +87,17 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Store Profile & Branding Settings State
+  const [storeName, setStoreName] = useState("SUPATMAN STORE");
+  const [storeTagline, setStoreTagline] = useState("Hardware Setup & Digital Atelier");
+  const [storeLogoUrl, setStoreLogoUrl] = useState("");
+  const [storeBadge, setStoreBadge] = useState("OFFICIAL");
+  const [storePhone, setStorePhone] = useState("08123456789");
+  const [storeAddress, setStoreAddress] = useState("Jl. Merdeka No. 45, Bandung, Jawa Barat");
+  const [storeAnnouncement, setStoreAnnouncement] = useState("Pengiriman Kilat Pulau Jawa & Akses Unduhan Instan Seluruh Aset Digital");
+  const [savingStoreSettings, setSavingStoreSettings] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
   // Email SMTP Settings State
   const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
   const [smtpPort, setSmtpPort] = useState("587");
@@ -149,10 +160,92 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
     } else if (activeTab === "finance") {
       fetchFinance();
     } else if (activeTab === "settings") {
+      fetchStoreSettings();
       fetchAuthSettings();
       fetchEmailSettings();
     }
   }, [activeTab, isAdminLoggedIn]);
+
+  const fetchStoreSettings = async () => {
+    try {
+      const s = await api.getStoreSettings();
+      if (s) {
+        setStoreName(s.store_name || "SUPATMAN STORE");
+        setStoreTagline(s.store_tagline || "");
+        setStoreLogoUrl(s.store_logo_url || "");
+        setStoreBadge(s.store_badge || "OFFICIAL");
+        setStorePhone(s.store_phone || "");
+        setStoreAddress(s.store_address || "");
+        setStoreAnnouncement(s.store_announcement || "");
+      }
+    } catch (err: any) {
+      console.error("Gagal memuat profil toko:", err);
+    }
+  };
+
+  const handleSaveStoreSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingStoreSettings(true);
+    try {
+      await api.updateStoreSettings({
+        store_name: storeName,
+        store_tagline: storeTagline,
+        store_logo_url: storeLogoUrl,
+        store_badge: storeBadge,
+        store_phone: storePhone,
+        store_address: storeAddress,
+        store_announcement: storeAnnouncement,
+      });
+      showNotification("Pengaturan Identitas & Branding Toko berhasil disimpan!");
+    } catch (err: any) {
+      showNotification(err.message || "Gagal menyimpan pengaturan toko", true);
+    } finally {
+      setSavingStoreSettings(false);
+    }
+  };
+
+  const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      showNotification("Format file harus berupa gambar (PNG, JPG, SVG, WebP)", true);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showNotification("Ukuran file logo maksimal 5MB", true);
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result as string;
+          const res = await api.uploadProductImage({
+            file_name: `logo-${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`,
+            content_type: file.type || "image/png",
+            data: base64Data,
+          });
+          setStoreLogoUrl(res.url);
+          showNotification("Logo toko berhasil di-upload!");
+        } catch (err: any) {
+          showNotification(err.message || "Gagal meng-upload logo", true);
+        } finally {
+          setUploadingLogo(false);
+        }
+      };
+      reader.onerror = () => {
+        showNotification("Gagal membaca file gambar", true);
+        setUploadingLogo(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      showNotification(err.message || "Terjadi kesalahan upload logo", true);
+      setUploadingLogo(false);
+    }
+  };
 
   const fetchAuthSettings = async () => {
     setLoading(true);
@@ -1465,6 +1558,195 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
         {/* ======================= TAB: PENGATURAN (SETTINGS) ======================= */}
         {activeTab === "settings" && (
           <div className="max-w-3xl space-y-6">
+            {/* Section 1: Store Profile & Branding */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shadow-xs">
+                  🏪
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Identitas &amp; Branding Toko</h2>
+                  <p className="text-xs text-slate-500">Konfigurasi Nama Toko, Slogan, Logo, Kontak, dan Banner Pengumuman Toko</p>
+                </div>
+              </div>
+
+              {/* Live Preview Toko */}
+              <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-200/90 space-y-3">
+                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-500">
+                  Pratinjau Langsung Tampilan Header
+                </span>
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-3">
+                  {storeLogoUrl ? (
+                    <img
+                      src={storeLogoUrl}
+                      alt={storeName}
+                      className="w-12 h-12 rounded-xl object-contain border border-slate-100 p-1 bg-white shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-bold text-white shadow-xs text-lg">
+                      📦
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-heading font-black text-lg tracking-tight text-slate-900">
+                        {storeName || "NAMA TOKO"}
+                      </span>
+                      {storeBadge && (
+                        <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                          {storeBadge}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs font-medium text-slate-500">
+                      {storeTagline || "Slogan atau Deskripsi Singkat Toko"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveStoreSettings} className="space-y-5 text-xs">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Store Name */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Nama Toko *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={storeName}
+                      onChange={(e) => setStoreName(e.target.value)}
+                      placeholder="Contoh: SUPATMAN STORE"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Store Badge */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Badge Toko
+                    </label>
+                    <input
+                      type="text"
+                      value={storeBadge}
+                      onChange={(e) => setStoreBadge(e.target.value)}
+                      placeholder="Contoh: OFFICIAL, VERIFIED, RESMI"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Store Tagline */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Slogan / Tagline Toko
+                  </label>
+                  <input
+                    type="text"
+                    value={storeTagline}
+                    onChange={(e) => setStoreTagline(e.target.value)}
+                    placeholder="Contoh: Hardware Setup & Digital Atelier"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Store Logo (Upload File & URL) */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    Logo Toko
+                  </label>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <label className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 hover:border-indigo-400 rounded-xl text-xs font-semibold text-slate-700 cursor-pointer shadow-xs transition hover:bg-slate-50">
+                      <span>{uploadingLogo ? "⏳ Mengunggah..." : "📁 Pilih File Logo"}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoFileChange}
+                        disabled={uploadingLogo}
+                        className="hidden"
+                      />
+                    </label>
+                    {storeLogoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setStoreLogoUrl("")}
+                        className="text-xs text-rose-600 hover:underline font-medium"
+                      >
+                        Hapus Logo (Gunakan Icon Default)
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-slate-500 mb-1">
+                      Atau tempel URL gambar logo langsung:
+                    </label>
+                    <input
+                      type="url"
+                      value={storeLogoUrl}
+                      onChange={(e) => setStoreLogoUrl(e.target.value)}
+                      placeholder="https://.../logo.png"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Store Phone / WhatsApp */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      No. WhatsApp / Kontak Toko
+                    </label>
+                    <input
+                      type="text"
+                      value={storePhone}
+                      onChange={(e) => setStorePhone(e.target.value)}
+                      placeholder="Contoh: 08123456789"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Store Announcement */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Teks Bar Pengumuman
+                    </label>
+                    <input
+                      type="text"
+                      value={storeAnnouncement}
+                      onChange={(e) => setStoreAnnouncement(e.target.value)}
+                      placeholder="Contoh: Pengiriman Kilat Pulau Jawa & Akses Unduhan Instan..."
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Store Physical Address */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Alamat Fisik Toko (Ditampilkan di Footer &amp; Invoice)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={storeAddress}
+                    onChange={(e) => setStoreAddress(e.target.value)}
+                    placeholder="Contoh: Jl. Merdeka No. 45, Bandung, Jawa Barat"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingStoreSettings || uploadingLogo}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
+                  >
+                    {savingStoreSettings ? "Menyimpan..." : "Simpan Profil Toko"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg shadow-xs">

@@ -535,4 +535,100 @@ func ServeProductImage(w http.ResponseWriter, req *http.Request) {
 	_, _ = io.Copy(w, reader)
 }
 
+type StoreSettings struct {
+	StoreName         string `json:"store_name"`
+	StoreTagline      string `json:"store_tagline"`
+	StoreLogoURL      string `json:"store_logo_url"`
+	StoreBadge        string `json:"store_badge"`
+	StorePhone        string `json:"store_phone"`
+	StoreAddress      string `json:"store_address"`
+	StoreAnnouncement string `json:"store_announcement"`
+}
+
+// GetStoreSettings returns the public store profile and branding configuration.
+//
+//encore:api public method=GET path=/store/settings
+func GetStoreSettings(ctx context.Context) (*StoreSettings, error) {
+	s := StoreSettings{
+		StoreName:         "SUPATMAN STORE",
+		StoreTagline:      "Hardware Setup & Digital Atelier",
+		StoreBadge:        "OFFICIAL",
+		StorePhone:        "08123456789",
+		StoreAddress:      "Jl. Merdeka No. 45, Bandung, Jawa Barat",
+		StoreAnnouncement: "Pengiriman Kilat Pulau Jawa & Akses Unduhan Instan Seluruh Aset Digital",
+	}
+
+	rows, err := db.Query(ctx, `SELECT key, value FROM store_settings`)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var k, v string
+			if err := rows.Scan(&k, &v); err == nil {
+				switch k {
+				case "store_name":
+					if v != "" {
+						s.StoreName = v
+					}
+				case "store_tagline":
+					s.StoreTagline = v
+				case "store_logo_url":
+					s.StoreLogoURL = v
+				case "store_badge":
+					if v != "" {
+						s.StoreBadge = v
+					}
+				case "store_phone":
+					s.StorePhone = v
+				case "store_address":
+					s.StoreAddress = v
+				case "store_announcement":
+					s.StoreAnnouncement = v
+				}
+			}
+		}
+	}
+
+	return &s, nil
+}
+
+// UpdateStoreSettings updates store profile and branding configuration (admin only).
+//
+//encore:api auth method=POST path=/store/settings
+func UpdateStoreSettings(ctx context.Context, p *StoreSettings) (*StoreSettings, error) {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	configs := map[string]string{
+		"store_name":         strings.TrimSpace(p.StoreName),
+		"store_tagline":      strings.TrimSpace(p.StoreTagline),
+		"store_logo_url":      strings.TrimSpace(p.StoreLogoURL),
+		"store_badge":        strings.TrimSpace(p.StoreBadge),
+		"store_phone":        strings.TrimSpace(p.StorePhone),
+		"store_address":      strings.TrimSpace(p.StoreAddress),
+		"store_announcement": strings.TrimSpace(p.StoreAnnouncement),
+	}
+
+	if configs["store_name"] == "" {
+		configs["store_name"] = "SUPATMAN STORE"
+	}
+	if configs["store_badge"] == "" {
+		configs["store_badge"] = "OFFICIAL"
+	}
+
+	for k, v := range configs {
+		_, err := db.Exec(ctx, `
+			INSERT INTO store_settings (key, value, updated_at)
+			VALUES ($1, $2, NOW())
+			ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
+		`, k, v)
+		if err != nil {
+			return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+		}
+	}
+
+	return p, nil
+}
+
 

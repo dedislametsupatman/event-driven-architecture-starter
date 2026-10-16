@@ -6,6 +6,7 @@ import {
   PaymentMethods,
   User,
   InAppNotification,
+  StoreSettings,
 } from "./api";
 import { AdminCMS } from "./AdminCMS";
 import { OrdersPage } from "./OrdersPage";
@@ -114,6 +115,28 @@ export default function App() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethods | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
+  // Store Profile & Branding Config
+  const [storeSettings, setStoreSettings] = useState<StoreSettings>({
+    store_name: "SUPATMAN STORE",
+    store_tagline: "Hardware Setup & Digital Atelier",
+    store_logo_url: "",
+    store_badge: "OFFICIAL",
+    store_phone: "08123456789",
+    store_address: "Jl. Merdeka No. 45, Bandung, Jawa Barat",
+    store_announcement: "Pengiriman Kilat Pulau Jawa & Akses Unduhan Instan Seluruh Aset Digital",
+  });
+
+  const loadStoreSettings = async () => {
+    try {
+      const s = await api.getStoreSettings();
+      if (s) {
+        setStoreSettings(s);
+      }
+    } catch (err) {
+      console.error("Gagal memuat profil toko:", err);
+    }
+  };
+
   useEffect(() => {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart]);
@@ -123,6 +146,7 @@ export default function App() {
     loadCategories();
     loadPaymentMethods();
     checkCurrentUser();
+    loadStoreSettings();
   }, [search, selectedCategory, digitalFilter]);
 
   // Handle ESC key for detail modal closing
@@ -350,9 +374,11 @@ export default function App() {
           <div className="flex items-center gap-2.5 mx-auto sm:mx-0">
             <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/80 px-2 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              RESMI
+              {storeSettings.store_badge || "RESMI"}
             </span>
-            <span className="text-slate-200">Pengiriman Kilat Pulau Jawa &amp; Akses Unduhan Instan Seluruh Aset Digital</span>
+            <span className="text-slate-200">
+              {storeSettings.store_announcement || "Pengiriman Kilat Pulau Jawa & Akses Unduhan Instan Seluruh Aset Digital"}
+            </span>
           </div>
           <div className="hidden lg:flex items-center gap-4 text-[11px] text-slate-400 font-mono">
             <span>GARANSI KEASLIAN</span>
@@ -370,21 +396,33 @@ export default function App() {
             onClick={() => navigateTo("store", "/")}
             className="flex items-center gap-3 cursor-pointer group select-none"
           >
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-              <CubeIcon className="w-6 h-6" />
-            </div>
+            {storeSettings.store_logo_url ? (
+              <img
+                src={storeSettings.store_logo_url}
+                alt={storeSettings.store_name}
+                className="w-11 h-11 rounded-2xl object-contain border border-slate-200/80 p-1 bg-white shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform"
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
+                <CubeIcon className="w-6 h-6" />
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-heading font-black text-xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                  SUPATMAN STORE
+                  {storeSettings.store_name || "SUPATMAN STORE"}
                 </span>
-                <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80">
-                  OFFICIAL
-                </span>
+                {storeSettings.store_badge && (
+                  <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80">
+                    {storeSettings.store_badge}
+                  </span>
+                )}
               </div>
-              <p className="text-[11px] font-medium text-slate-500 hidden sm:block tracking-wide">
-                Hardware Setup &amp; Digital Atelier
-              </p>
+              {storeSettings.store_tagline && (
+                <p className="text-[11px] font-medium text-slate-500 hidden sm:block tracking-wide">
+                  {storeSettings.store_tagline}
+                </p>
+              )}
             </div>
           </div>
 
@@ -623,6 +661,7 @@ export default function App() {
             initialOrderId={activeOrderId}
             onNavigate={navigateTo}
             showToast={triggerToast}
+            storeSettings={storeSettings}
           />
         </main>
       ) : viewMode === "cart" ? (
@@ -1033,19 +1072,32 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-slate-100">
             <div className="md:col-span-6">
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
-                  <CubeIcon className="w-4 h-4" />
-                </div>
+                {storeSettings.store_logo_url ? (
+                  <img
+                    src={storeSettings.store_logo_url}
+                    alt={storeSettings.store_name}
+                    className="w-8 h-8 rounded-xl object-contain border border-slate-200 p-0.5 bg-white"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                    <CubeIcon className="w-4 h-4" />
+                  </div>
+                )}
                 <span className="font-heading font-black text-base text-slate-900 tracking-tight">
-                  SUPATMAN STORE
+                  {storeSettings.store_name || "SUPATMAN STORE"}
                 </span>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                  ATELIER
+                  {storeSettings.store_badge || "ATELIER"}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed max-w-md">
-                Kurasi perlengkapan meja kerja berdesain minimalis dan koleksi aset digital berkualitas tinggi. Dirancang untuk developer, kreator, dan profesional modern.
+              <p className="text-xs text-slate-500 leading-relaxed max-w-md mb-3">
+                {storeSettings.store_tagline || "Kurasi perlengkapan meja kerja berdesain minimalis dan koleksi aset digital berkualitas tinggi. Dirancang untuk developer, kreator, dan profesional modern."}
               </p>
+              {storeSettings.store_address && (
+                <p className="text-[11px] text-slate-400 font-mono">
+                  📍 {storeSettings.store_address}
+                </p>
+              )}
             </div>
 
             <div className="md:col-span-3">
@@ -1073,9 +1125,14 @@ export default function App() {
 
             <div className="md:col-span-3">
               <h4 className="font-mono text-[11px] font-bold text-slate-900 uppercase tracking-wider mb-3">
-                Keandalan Sistem
+                Hubungi Kami
               </h4>
               <div className="space-y-2 text-xs text-slate-500">
+                {storeSettings.store_phone && (
+                  <p className="text-xs font-mono font-semibold text-slate-700">
+                    WA/Telp: {storeSettings.store_phone}
+                  </p>
+                )}
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-700">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   <span>ENCORE CLOUD MICROSERVICES</span>
@@ -1088,7 +1145,7 @@ export default function App() {
           </div>
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 font-mono">
-            <p>© {new Date().getFullYear()} Supatman Online Store. All Rights Reserved.</p>
+            <p>© {new Date().getFullYear()} {storeSettings.store_name || "Supatman Store"}. All Rights Reserved.</p>
             <p className="text-[11px]">Crafted with Go (Encore.dev) &amp; React 18 + Tailwind CSS</p>
           </div>
         </div>
