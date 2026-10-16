@@ -97,15 +97,26 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   if (!res.ok) {
     let errorMsg = `Request failed: ${res.statusText}`;
     try {
-      const errJson = await res.json();
-      errorMsg = errJson.message || errJson.error || errorMsg;
+      const text = await res.text();
+      if (text) {
+        const errJson = JSON.parse(text);
+        errorMsg = errJson.message || errJson.error || errorMsg;
+      }
     } catch {
       // ignore
     }
     throw new Error(errorMsg);
   }
 
-  return res.json();
+  const text = await res.text();
+  if (!text || text.trim() === "") {
+    return {} as T;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return {} as T;
+  }
 }
 
 export const api = {

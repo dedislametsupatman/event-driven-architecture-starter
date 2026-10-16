@@ -353,10 +353,10 @@ func GetSettings(ctx context.Context) (*AuthSettings, error) {
 // UpdateSettings updates auth integration settings (admin only).
 //
 //encore:api auth method=POST path=/auth/settings
-func UpdateSettings(ctx context.Context, p *AuthSettings) error {
+func UpdateSettings(ctx context.Context, p *AuthSettings) (*AuthSettings, error) {
 	usr, err := Me(ctx)
 	if err != nil || usr.Role != "admin" {
-		return &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
 	}
 
 	enabledStr := "false"
@@ -370,7 +370,7 @@ func UpdateSettings(ctx context.Context, p *AuthSettings) error {
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
 	`, strings.TrimSpace(p.GoogleClientID))
 	if err != nil {
-		return &errs.Error{Code: errs.Internal, Message: err.Error()}
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
 	}
 
 	_, err = db.Exec(ctx, `
@@ -379,9 +379,9 @@ func UpdateSettings(ctx context.Context, p *AuthSettings) error {
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()
 	`, enabledStr)
 	if err != nil {
-		return &errs.Error{Code: errs.Internal, Message: err.Error()}
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
 	}
 
-	return nil
+	return p, nil
 }
 
