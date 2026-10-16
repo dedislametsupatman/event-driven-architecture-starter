@@ -1,10 +1,15 @@
 package product
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -386,6 +391,58 @@ type UploadImageResponse struct {
 	FileName string `json:"file_name"`
 }
 
+// ValidateAndSanitizeImage checks file size, magic bytes, and image decode integrity.
+// Strictly whitelists JPEG, PNG, WebP, and GIF. Returns real MIME type and safe extension.
+func ValidateAndSanitizeImage(decoded []byte, maxBytes int) (string, string, error) {
+	if len(decoded) < 100 {
+		return "", "", &errs.Error{Code: errs.InvalidArgument, Message: "Ukuran file terlalu kecil atau kosong (minimal 100 bytes)"}
+	}
+	if len(decoded) > maxBytes {
+		return "", "", &errs.Error{
+			Code:    errs.InvalidArgument,
+			Message: fmt.Sprintf("Ukuran file (%d KB) melebihi batas maksimal %d MB", len(decoded)/1024, maxBytes/(1024*1024)),
+		}
+	}
+
+	// Sniff magic bytes using http.DetectContentType
+	detectedMime := http.DetectContentType(decoded)
+	var safeExt string
+
+	switch detectedMime {
+	case "image/jpeg":
+		safeExt = ".jpg"
+	case "image/png":
+		safeExt = ".png"
+	case "image/webp":
+		safeExt = ".webp"
+	case "image/gif":
+		safeExt = ".gif"
+	default:
+		return "", "", &errs.Error{
+			Code:    errs.InvalidArgument,
+			Message: fmt.Sprintf("Format file tidak diizinkan (%s). Hanya file gambar asli (JPEG, PNG, WebP, GIF) yang diperbolehkan demi keamanan.", detectedMime),
+		}
+	}
+
+	// Deep image structure verification
+	if detectedMime == "image/webp" {
+		if len(decoded) < 12 || !bytes.Equal(decoded[0:4], []byte("RIFF")) || !bytes.Equal(decoded[8:12], []byte("WEBP")) {
+			return "", "", &errs.Error{Code: errs.InvalidArgument, Message: "Header WebP tidak valid atau rusak"}
+		}
+	} else {
+		// For JPEG, PNG, GIF, verify with standard image decoder
+		_, _, err := image.DecodeConfig(bytes.NewReader(decoded))
+		if err != nil {
+			return "", "", &errs.Error{
+				Code:    errs.InvalidArgument,
+				Message: fmt.Sprintf("Struktur file gambar tidak valid atau rusak: %v", err),
+			}
+		}
+	}
+
+	return detectedMime, safeExt, nil
+}
+
 // UploadProductImage uploads an image to the product-images bucket (admin only).
 //
 //encore:api auth method=POST path=/upload/image
@@ -410,28 +467,24 @@ func UploadProductImage(ctx context.Context, p *UploadImageParams) (*UploadImage
 		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Invalid base64 image data"}
 	}
 
-	// Determine extension
-	ext := strings.ToLower(filepath.Ext(p.FileName))
-	if ext == "" {
-		switch p.ContentType {
-		case "image/jpeg", "image/jpg":
-			ext = ".jpg"
-		case "image/png":
-			ext = ".png"
-		case "image/webp":
-			ext = ".webp"
-		case "image/gif":
-			ext = ".gif"
-		default:
-			ext = ".png"
-		}
+	// Strict security validation: magic bytes sniffing, decode verification, max 10MB
+	realMime, safeExt, err := ValidateAndSanitizeImage(decoded, 10*1024*1024)
+	if err != nil {
+		return nil, err
 	}
 
-	cleanBase := slugify(strings.TrimSuffix(filepath.Base(p.FileName), ext))
-	objectName := fmt.Sprintf("%s-%d%s", cleanBase, time.Now().UnixNano()/1e6, ext)
+	rawBase := filepath.Base(filepath.Clean(p.FileName))
+	if rawBase == "." || rawBase == "/" {
+		rawBase = "product"
+	}
+	cleanBase := slugify(strings.TrimSuffix(rawBase, filepath.Ext(rawBase)))
+	if cleanBase == "" {
+		cleanBase = "product"
+	}
+	objectName := fmt.Sprintf("%s-%d%s", cleanBase, time.Now().UnixNano()/1e6, safeExt)
 
 	writer := ProductImages.Upload(ctx, objectName, objects.WithUploadAttrs(objects.UploadAttrs{
-		ContentType: p.ContentType,
+		ContentType: realMime,
 	}))
 	if _, err := writer.Write(decoded); err != nil {
 		writer.Abort(err)
@@ -452,13 +505,12 @@ func UploadProductImage(ctx context.Context, p *UploadImageParams) (*UploadImage
 	}, nil
 }
 
-// ServeProductImage serves an image stored in the product-images bucket.
+// ServeProductImage serves an image stored in the product-images bucket with strict security headers.
 //
 //encore:api public raw method=GET path=/images/:name
 func ServeProductImage(w http.ResponseWriter, req *http.Request) {
-	parts := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
-	name := parts[len(parts)-1]
-	if name == "" {
+	name := filepath.Base(filepath.Clean(req.URL.Path))
+	if name == "" || name == "." || name == "/" {
 		http.Error(w, "Image name required", http.StatusBadRequest)
 		return
 	}
@@ -473,6 +525,11 @@ func ServeProductImage(w http.ResponseWriter, req *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "image/jpeg")
 	}
+
+	// Security Headers to prevent MIME confusion, XSS, and clickjacking
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 
 	_, _ = io.Copy(w, reader)

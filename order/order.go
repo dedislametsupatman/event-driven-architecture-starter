@@ -2,8 +2,12 @@ package order
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -16,11 +20,16 @@ import (
 	"encore.dev/cron"
 	"encore.dev/pubsub"
 	"encore.dev/rlog"
+	"encore.dev/storage/objects"
 	"encore.dev/storage/sqldb"
 )
 
 var db = sqldb.NewDatabase("orders", sqldb.DatabaseConfig{
 	Migrations: "./migrations",
+})
+
+var PaymentProofs = objects.NewBucket("payment-proofs", objects.BucketConfig{
+	Public: true,
 })
 
 type OrderItem struct {
@@ -308,6 +317,119 @@ func UploadProof(ctx context.Context, id int64, p *UploadProofParams) error {
 		WHERE id = $2
 	`, p.ProofURL, id)
 	return err
+}
+
+type UploadProofFileParams struct {
+	Data     string `json:"data"` // base64 string
+	FileName string `json:"file_name"`
+}
+
+type UploadProofFileResponse struct {
+	ProofURL string `json:"proof_url"`
+	FileName string `json:"file_name"`
+}
+
+// UploadProofFile uploads customer proof of payment file to the payment-proofs bucket with strict security.
+//
+//encore:api public method=POST path=/orders/:id/upload-proof
+func UploadProofFile(ctx context.Context, id int64, p *UploadProofFileParams) (*UploadProofFileResponse, error) {
+	// Verify order exists and is in pending status
+	var status string
+	err := db.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1`, id).Scan(&status)
+	if errors.Is(err, sqldb.ErrNoRows) {
+		return nil, &errs.Error{Code: errs.NotFound, Message: "Pesanan tidak ditemukan"}
+	} else if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	if status != "pending" {
+		return nil, &errs.Error{Code: errs.FailedPrecondition, Message: "Pesanan ini sudah tidak dalam status menunggu pembayaran"}
+	}
+
+	if p.Data == "" {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Data gambar bukti pembayaran diperlukan"}
+	}
+
+	// Strip data URL prefix if present (e.g. data:image/png;base64,...)
+	data := p.Data
+	if idx := strings.Index(data, ","); idx != -1 {
+		data = data[idx+1:]
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Format base64 bukti pembayaran tidak valid"}
+	}
+
+	// Strict security validation: magic bytes sniffing, decode verification, max 5MB for payment receipts
+	realMime, safeExt, err := product.ValidateAndSanitizeImage(decoded, 5*1024*1024)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate safe randomized storage key (prevents path traversal and collisions)
+	objectName := fmt.Sprintf("order-%d-proof-%d%s", id, time.Now().UnixNano()/1e6, safeExt)
+
+	writer := PaymentProofs.Upload(ctx, objectName, objects.WithUploadAttrs(objects.UploadAttrs{
+		ContentType: realMime,
+	}))
+	if _, err := writer.Write(decoded); err != nil {
+		writer.Abort(err)
+		return nil, &errs.Error{Code: errs.Internal, Message: fmt.Sprintf("Gagal menyimpan ke storage: %v", err)}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: fmt.Sprintf("Gagal memfinalisasi upload: %v", err)}
+	}
+
+	proofURL := fmt.Sprintf("/proofs/%s", objectName)
+	if pub := PaymentProofs.PublicURL(objectName); pub != nil && pub.String() != "" {
+		proofURL = pub.String()
+	}
+
+	// Update order record
+	_, err = db.Exec(ctx, `
+		UPDATE orders
+		SET payment_proof_url = $1, updated_at = NOW()
+		WHERE id = $2
+	`, proofURL, id)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	return &UploadProofFileResponse{
+		ProofURL: proofURL,
+		FileName: objectName,
+	}, nil
+}
+
+// ServeProofImage serves a payment proof image stored in the payment-proofs bucket with strict security headers.
+//
+//encore:api public raw method=GET path=/proofs/:name
+func ServeProofImage(w http.ResponseWriter, req *http.Request) {
+	name := filepath.Base(filepath.Clean(req.URL.Path))
+	if name == "" || name == "." || name == "/" {
+		http.Error(w, "Proof image name required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := req.Context()
+	reader := PaymentProofs.Download(ctx, name)
+	defer reader.Close()
+
+	attrs, err := PaymentProofs.Attrs(ctx, name)
+	if err == nil && attrs.ContentType != "" {
+		w.Header().Set("Content-Type", attrs.ContentType)
+	} else {
+		w.Header().Set("Content-Type", "image/jpeg")
+	}
+
+	// Security Headers to prevent MIME sniffing, XSS, and clickjacking
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+
+	_, _ = io.Copy(w, reader)
 }
 
 type UpdateStatusParams struct {

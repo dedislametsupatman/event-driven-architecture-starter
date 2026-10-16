@@ -21,6 +21,8 @@ import {
   CheckBadgeIcon,
   DocumentDuplicateIcon,
   ArrowTopRightOnSquareIcon,
+  PhotoIcon,
+  ArrowUpTrayIcon,
 } from "@heroicons/react/24/outline";
 
 interface OrdersPageProps {
@@ -48,8 +50,12 @@ export function OrdersPage({
 
   // Upload proof state
   const [proofUrl, setProofUrl] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState<string | null>(null);
+  const [proofMode, setProofMode] = useState<"file" | "url">("file");
   const [uploadingProof, setUploadingProof] = useState(false);
   const [proofSuccess, setProofSuccess] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Load user orders or initial order
   useEffect(() => {
@@ -96,18 +102,69 @@ export function OrdersPage({
     loadSpecificOrder(cleanId);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Security check 1: Strictly whitelist image MIME types only
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("Hanya file gambar asli (JPG, PNG, WebP, GIF) yang diperbolehkan demi keamanan sistem.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // Security check 2: Enforce max 5 MB file size limit
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Ukuran gambar terlalu besar! Maksimal 5 MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setProofFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setProofPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleUploadProof = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedOrder || !proofUrl.trim()) return;
+    if (!selectedOrder) return;
+
+    if (proofMode === "file") {
+      if (!proofPreview) {
+        alert("Pilih file foto bukti transfer terlebih dahulu.");
+        return;
+      }
+    } else {
+      if (!proofUrl.trim()) {
+        alert("Masukkan URL atau link foto bukti transfer.");
+        return;
+      }
+    }
 
     setUploadingProof(true);
     try {
-      await api.uploadProof(selectedOrder.id, proofUrl.trim());
+      if (proofMode === "file" && proofPreview) {
+        // Upload directly to PaymentProofs bucket with security inspection
+        await api.uploadProofFile(selectedOrder.id, {
+          data: proofPreview,
+          file_name: proofFile?.name || "bukti-transfer.jpg",
+        });
+      } else {
+        await api.uploadProof(selectedOrder.id, proofUrl.trim());
+      }
+
       setProofSuccess(true);
-      showToast("Bukti pembayaran berhasil dikirim! Menunggu verifikasi penjual.");
+      showToast("Bukti pembayaran berhasil diunggah ke storage! Menunggu verifikasi.");
       // Refresh order detail
       const updated = await api.getOrder(selectedOrder.id);
       setSelectedOrder(updated);
+      setProofFile(null);
+      setProofPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       if (currentUser) loadUserOrders();
     } catch (err: any) {
       alert(err.message || "Gagal mengunggah bukti pembayaran.");
@@ -471,8 +528,8 @@ export function OrdersPage({
                         Pilihan Rekening Pembayaran:
                       </span>
 
-                      {paymentMethods?.manual_accounts && paymentMethods.manual_accounts.length > 0 ? (
-                        paymentMethods.manual_accounts.map((acc, idx) => (
+                      {paymentMethods?.manual_banks && paymentMethods.manual_banks.length > 0 ? (
+                        paymentMethods.manual_banks.map((acc, idx) => (
                           <div key={idx} className="border border-slate-200 rounded-xl p-3 bg-slate-50 flex items-center justify-between">
                             <div>
                               <span className="text-xs font-bold text-slate-900">{acc.bank_name}</span>
@@ -518,19 +575,98 @@ export function OrdersPage({
                         </div>
                       )}
 
-                      {/* Form Upload Bukti Transfer */}
+                      {/* Form Upload Bukti Transfer ke Bucket */}
                       <form onSubmit={handleUploadProof} className="pt-4 border-t border-slate-100 space-y-3">
-                        <label className="block text-xs font-bold text-slate-800">
-                          Sudah Transfer? Masukkan URL / Link Bukti Transfer:
-                        </label>
-                        <input
-                          type="url"
-                          placeholder="https://... atau link foto bukti"
-                          value={proofUrl}
-                          onChange={(e) => setProofUrl(e.target.value)}
-                          required
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
-                        />
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-bold text-slate-800">
+                            Upload Bukti Pembayaran:
+                          </label>
+                          <div className="flex items-center gap-1.5 text-[11px]">
+                            <button
+                              type="button"
+                              onClick={() => setProofMode("file")}
+                              className={`px-2 py-0.5 rounded font-bold transition-all ${
+                                proofMode === "file"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "text-slate-500 hover:text-slate-800"
+                              }`}
+                            >
+                              File Gambar
+                            </button>
+                            <span>|</span>
+                            <button
+                              type="button"
+                              onClick={() => setProofMode("url")}
+                              className={`px-2 py-0.5 rounded font-bold transition-all ${
+                                proofMode === "url"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "text-slate-500 hover:text-slate-800"
+                              }`}
+                            >
+                              Link URL
+                            </button>
+                          </div>
+                        </div>
+
+                        {proofMode === "file" ? (
+                          <div className="space-y-2">
+                            {/* Hidden file input */}
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              onChange={handleFileSelect}
+                              className="hidden"
+                              id="proof-file-input"
+                            />
+
+                            {/* Dropzone / Picker */}
+                            <label
+                              htmlFor="proof-file-input"
+                              className="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-slate-50 hover:bg-blue-50/40 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all text-center"
+                            >
+                              {proofPreview ? (
+                                <div className="space-y-2">
+                                  <img
+                                    src={proofPreview}
+                                    alt="Preview Bukti"
+                                    className="w-32 h-32 object-cover rounded-lg border border-slate-200 mx-auto shadow-xs"
+                                  />
+                                  <div className="text-xs text-slate-700 font-bold truncate max-w-xs">
+                                    {proofFile?.name} ({(proofFile?.size ? proofFile.size / 1024 : 0).toFixed(0)} KB)
+                                  </div>
+                                  <span className="text-[11px] text-blue-600 font-semibold underline block">
+                                    Klik untuk ganti foto
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="space-y-1">
+                                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-1">
+                                    <ArrowUpTrayIcon className="w-5 h-5" />
+                                  </div>
+                                  <p className="text-xs font-bold text-slate-800">
+                                    Pilih Foto Struk / Bukti Transfer
+                                  </p>
+                                  <p className="text-[10px] text-slate-500">
+                                    Hanya file gambar (JPG, PNG, WebP, GIF maks 5 MB)
+                                  </p>
+                                </div>
+                              )}
+                            </label>
+                          </div>
+                        ) : (
+                          <div>
+                            <input
+                              type="url"
+                              placeholder="https://... atau link foto bukti"
+                              value={proofUrl}
+                              onChange={(e) => setProofUrl(e.target.value)}
+                              required
+                              className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                            />
+                          </div>
+                        )}
+
                         <button
                           type="submit"
                           disabled={uploadingProof}
@@ -539,7 +675,7 @@ export function OrdersPage({
                           {uploadingProof ? (
                             <>
                               <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                              Mengunggah...
+                              Mengunggah ke Storage...
                             </>
                           ) : (
                             "Kirim Bukti Pembayaran"
@@ -547,7 +683,7 @@ export function OrdersPage({
                         </button>
                         {proofSuccess && (
                           <p className="text-xs text-emerald-600 font-bold text-center">
-                            ✓ Bukti terkirim! Admin akan memverifikasi pesanan Anda.
+                            ✓ Bukti tersimpan di bucket storage! Admin akan segera memverifikasi.
                           </p>
                         )}
                       </form>
@@ -564,7 +700,7 @@ export function OrdersPage({
                       </div>
                       <div className="p-3 bg-white border border-slate-300 rounded-lg inline-block">
                         <img
-                          src={paymentMethods?.qris?.image_url || "https://images.unsplash.com/photo-1595079672139-622943ac5321?w=400&q=80"}
+                          src={paymentMethods?.qris_image_url || "https://images.unsplash.com/photo-1595079672139-622943ac5321?w=400&q=80"}
                           alt="QRIS Code"
                           className="w-48 h-48 object-contain mx-auto"
                         />

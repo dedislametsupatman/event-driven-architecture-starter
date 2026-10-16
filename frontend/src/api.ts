@@ -182,6 +182,13 @@ export const api = {
     });
   },
 
+  async uploadProofFile(orderId: number, data: { data: string; file_name: string }) {
+    return request<{ proof_url: string; file_name: string }>(`/orders/${orderId}/upload-proof`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   async updateOrderStatus(orderId: number, status: string, trackingNumber?: string) {
     return request<void>(`/orders/${orderId}/status`, {
       method: "POST",
