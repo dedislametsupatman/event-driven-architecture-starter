@@ -481,7 +481,7 @@ export function CartPage({
                 <button
                   type="submit"
                   disabled={checkoutLoading}
-                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-sm rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 mt-4"
+                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 mt-4 tap-effect active:scale-[0.99]"
                 >
                   {checkoutLoading ? (
                     <>

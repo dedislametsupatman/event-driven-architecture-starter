@@ -326,16 +326,16 @@ export function ProfilePage({
         </div>
       ) : (
         /* ================= HALAMAN LOGIN & DAFTAR KONSUMEN ================= */
-        <div className="max-w-md mx-auto my-8">
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm space-y-6">
+        <div className="max-w-md mx-auto my-12">
+          <div className="surface-card rounded-3xl p-8 sm:p-10 shadow-lg space-y-6">
             <div className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-sm font-bold text-xl">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-700 text-white flex items-center justify-center mx-auto shadow-md font-bold text-xl">
                 <CubeIcon className="w-6 h-6" />
               </div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+              <h2 className="font-heading text-2xl font-black text-slate-900 tracking-tight">
                 {authMode === "login" ? "Masuk ke Akun Anda" : "Buat Akun Konsumen Baru"}
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 leading-relaxed">
                 {authMode === "login"
                   ? "Akses riwayat pesanan, unduhan digital, dan kelola profil Anda."
                   : "Daftar sekarang untuk kemudahan bertransaksi dan pelacakan pesanan instan."}
@@ -348,7 +348,7 @@ export function ProfilePage({
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={googleLoading}
-                className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 shadow-2xs transition-all flex items-center justify-center gap-3"
+                className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-xl text-xs font-bold text-slate-700 shadow-xs transition-all flex items-center justify-center gap-3 tap-effect"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path
@@ -434,7 +434,7 @@ export function ProfilePage({
               <button
                 type="submit"
                 disabled={authLoading}
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all tap-effect active:scale-[0.99]"
               >
                 {authLoading ? "Memproses..." : authMode === "login" ? "Masuk ke Akun" : "Daftar Akun Baru"}
               </button>

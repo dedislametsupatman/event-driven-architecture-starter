@@ -326,21 +326,36 @@ export function OrdersPage({
                   </div>
                 </div>
 
-                {/* Progress Status Bar */}
-                <div className="pt-6">
-                  <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                {/* Progress Status Bar (Connected Stepper) */}
+                <div className="pt-6 relative">
+                  <div className="absolute top-10 left-[12%] right-[12%] h-0.5 bg-slate-200 -z-0">
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-500"
+                      style={{
+                        width:
+                          selectedOrder.status === "completed" || selectedOrder.status === "shipped"
+                            ? "100%"
+                            : selectedOrder.status === "processing"
+                            ? "66%"
+                            : selectedOrder.status === "paid"
+                            ? "33%"
+                            : "0%",
+                      }}
+                    ></div>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 text-center text-xs relative z-10">
                     <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold mb-1 shadow-xs">
+                      <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold mb-1 shadow-xs ring-4 ring-white">
                         1
                       </div>
                       <span className="font-semibold text-slate-900">Pesanan Dibuat</span>
                     </div>
 
                     <div className="flex flex-col items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 shadow-xs ${
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 shadow-xs ring-4 ring-white ${
                         selectedOrder.status !== "pending" && selectedOrder.status !== "cancelled"
                           ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-400"
+                          : "bg-slate-100 text-slate-400 border border-slate-200"
                       }`}>
                         2
                       </div>
@@ -350,10 +365,10 @@ export function OrdersPage({
                     </div>
 
                     <div className="flex flex-col items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 shadow-xs ${
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 shadow-xs ring-4 ring-white ${
                         selectedOrder.status === "processing" || selectedOrder.status === "shipped" || selectedOrder.status === "completed"
                           ? "bg-blue-600 text-white"
-                          : "bg-slate-100 text-slate-400"
+                          : "bg-slate-100 text-slate-400 border border-slate-200"
                       }`}>
                         3
                       </div>
@@ -363,10 +378,10 @@ export function OrdersPage({
                     </div>
 
                     <div className="flex flex-col items-center">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 shadow-xs ${
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold mb-1 shadow-xs ring-4 ring-white ${
                         selectedOrder.status === "completed" || selectedOrder.status === "shipped"
                           ? "bg-emerald-600 text-white"
-                          : "bg-slate-100 text-slate-400"
+                          : "bg-slate-100 text-slate-400 border border-slate-200"
                       }`}>
                         4
                       </div>
