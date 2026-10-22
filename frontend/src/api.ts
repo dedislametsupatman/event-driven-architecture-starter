@@ -5,6 +5,12 @@ export interface Category {
   icon: string;
 }
 
+export interface AffiliateLink {
+  platform: "shopee" | "tiktok" | "tokopedia" | "lazada" | "other" | string;
+  title: string;
+  url: string;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -16,6 +22,8 @@ export interface Product {
   digital_file_url?: string;
   weight_grams: number;
   image_url: string;
+  video_url?: string;
+  affiliate_links?: AffiliateLink[];
   category_id?: number;
   category_name?: string;
   created_at: string;
@@ -341,6 +349,13 @@ export const api = {
 
   async uploadProductImage(data: { file_name: string; content_type: string; data: string }) {
     return request<{ url: string; file_name: string }>("/upload/image", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async uploadProductVideo(data: { file_name: string; content_type: string; data: string }) {
+    return request<{ url: string; file_name: string }>("/upload/video", {
       method: "POST",
       body: JSON.stringify(data),
     });

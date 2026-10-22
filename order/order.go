@@ -139,6 +139,13 @@ func Create(ctx context.Context, p *CreateOrderParams) (*Order, error) {
 			return nil, &errs.Error{Code: errs.NotFound, Message: fmt.Sprintf("Product %d not found", item.ProductID)}
 		}
 
+		if len(pr.AffiliateLinks) > 0 {
+			return nil, &errs.Error{
+				Code:    errs.InvalidArgument,
+				Message: fmt.Sprintf("Produk \"%s\" merupakan produk afiliasi dan hanya dapat dibeli melalui tautan mitra", pr.Name),
+			}
+		}
+
 		if !pr.IsDigital {
 			isDigitalOnly = false
 			if pr.Stock < item.Quantity {

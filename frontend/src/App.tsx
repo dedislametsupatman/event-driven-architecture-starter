@@ -30,6 +30,8 @@ import {
   MagnifyingGlassIcon,
   TagIcon,
   BellIcon,
+  ArrowTopRightOnSquareIcon,
+  VideoCameraIcon,
 } from "@heroicons/react/24/outline";
 
 export type ViewMode = "store" | "cart" | "orders" | "profile" | "cms";
@@ -112,6 +114,13 @@ export default function App() {
   // Product Detail Quick View Modal State
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [detailQuantity, setDetailQuantity] = useState(1);
+  const [detailActiveMedia, setDetailActiveMedia] = useState<"image" | "video">("image");
+
+  const openProductDetail = (p: Product) => {
+    setDetailProduct(p);
+    setDetailQuantity(1);
+    setDetailActiveMedia(p.video_url ? "video" : "image");
+  };
 
   // Payment Methods & User Auth
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethods | null>(null);
@@ -883,8 +892,12 @@ export default function App() {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                     />
                     {/* Badge */}
-                    <div className="absolute top-3 left-3 flex gap-2">
-                      {product.is_digital ? (
+                    <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 max-w-[85%]">
+                      {product.affiliate_links && product.affiliate_links.length > 0 ? (
+                        <span className="badge-pill bg-amber-500/95 backdrop-blur-md text-white border-amber-300 shadow-xs font-bold">
+                          <span>🔗 AFILIASI</span>
+                        </span>
+                      ) : product.is_digital ? (
                         <span className="badge-pill bg-slate-900/85 backdrop-blur-md text-white border-white/20 shadow-xs">
                           <DocumentArrowDownIcon className="w-3 h-3 text-indigo-400" />
                           <span>DIGITAL</span>
@@ -895,9 +908,18 @@ export default function App() {
                           <span>FISIK</span>
                         </span>
                       )}
+
+                      {product.video_url && (
+                        <span className="badge-pill bg-indigo-600/90 backdrop-blur-md text-white border-indigo-400 shadow-xs font-bold">
+                          <span>🎬 VIDEO</span>
+                        </span>
+                      )}
                     </div>
                     {/* Quick Detail Hover Action */}
-                    <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div 
+                      onClick={() => openProductDetail(product)}
+                      className="absolute inset-0 bg-slate-950/20 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                    >
                       <span className="px-4 py-2 rounded-xl bg-white text-slate-900 text-xs font-bold shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
                         <EyeIcon className="w-4 h-4 text-blue-600" /> Lihat Detail
                       </span>
@@ -909,13 +931,16 @@ export default function App() {
                     <div>
                       <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono mb-1.5">
                         <span>{product.category_name || "Koleksi"}</span>
-                        <span>{product.is_digital ? "INSTANT" : `STOK: ${product.stock}`}</span>
+                        <span>
+                          {product.affiliate_links && product.affiliate_links.length > 0
+                            ? "MARKETPLACE"
+                            : product.is_digital
+                            ? "INSTANT"
+                            : `STOK: ${product.stock}`}
+                        </span>
                       </div>
                       <h2
-                        onClick={() => {
-                          setDetailProduct(product);
-                          setDetailQuantity(1);
-                        }}
+                        onClick={() => openProductDetail(product)}
                         className="font-heading font-bold text-sm text-slate-900 hover:text-blue-600 transition-colors line-clamp-1 mb-2 cursor-pointer"
                       >
                         {product.name}
@@ -928,30 +953,65 @@ export default function App() {
                     <div className="pt-3 border-t border-slate-100">
                       <div className="flex items-baseline justify-between mb-3.5">
                         <div>
-                          <span className="text-[10px] text-slate-400 block font-mono uppercase tracking-wider">Harga Resmi</span>
+                          <span className="text-[10px] text-slate-400 block font-mono uppercase tracking-wider">
+                            {product.affiliate_links && product.affiliate_links.length > 0 ? "Estimasi Harga" : "Harga Resmi"}
+                          </span>
                           <span className="text-base font-extrabold text-slate-900 num-tabular tracking-tight">
                             {formatIDR(product.price)}
                           </span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => addToCart(product, 1, false)}
-                          className="w-full py-2.5 px-3 rounded-xl bg-[#f5f3ef] hover:bg-[#e8e5df] text-xs font-semibold text-[#151514] transition-all border border-[#ddd9d2] tap-effect"
-                        >
-                          + Keranjang
-                        </button>
-                        <button
-                          onClick={() => {
-                            addToCart(product, 1, false);
-                            navigateTo("cart", "/cart");
-                          }}
-                          className="w-full py-2.5 px-3 rounded-xl bg-[#151514] hover:bg-[#2d2a25] text-xs font-bold text-[#ebe9e5] shadow-xs transition-all tap-effect"
-                        >
-                          Beli Langsung
-                        </button>
-                      </div>
+                      {product.affiliate_links && product.affiliate_links.length > 0 ? (
+                        <div>
+                          {product.affiliate_links.length === 1 ? (
+                            <a
+                              href={product.affiliate_links[0].url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className={`w-full py-2.5 px-3 rounded-xl text-xs font-bold text-white shadow-xs transition-all flex items-center justify-center gap-1.5 tap-effect ${
+                                product.affiliate_links[0].platform === "shopee"
+                                  ? "bg-[#EE4D2D] hover:bg-[#d63f21]"
+                                  : product.affiliate_links[0].platform === "tiktok"
+                                  ? "bg-[#010101] hover:bg-[#222]"
+                                  : product.affiliate_links[0].platform === "tokopedia"
+                                  ? "bg-[#03AC0E] hover:bg-[#028b0b]"
+                                  : "bg-[#151514] hover:bg-[#2d2a25]"
+                              }`}
+                            >
+                              <span>{product.affiliate_links[0].title || "Beli di Marketplace"}</span>
+                              <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => openProductDetail(product)}
+                              className="w-full py-2.5 px-3 rounded-xl bg-[#151514] hover:bg-[#2d2a25] text-xs font-bold text-[#ebe9e5] shadow-xs transition-all flex items-center justify-center gap-1.5 tap-effect"
+                            >
+                              <span>Beli via Affiliate ({product.affiliate_links.length})</span>
+                              <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => addToCart(product, 1, false)}
+                            className="w-full py-2.5 px-3 rounded-xl bg-[#f5f3ef] hover:bg-[#e8e5df] text-xs font-semibold text-[#151514] transition-all border border-[#ddd9d2] tap-effect"
+                          >
+                            + Keranjang
+                          </button>
+                          <button
+                            onClick={() => {
+                              addToCart(product, 1, false);
+                              navigateTo("cart", "/cart");
+                            }}
+                            className="w-full py-2.5 px-3 rounded-xl bg-[#151514] hover:bg-[#2d2a25] text-xs font-bold text-[#ebe9e5] shadow-xs transition-all tap-effect"
+                          >
+                            Beli Langsung
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>
@@ -998,19 +1058,66 @@ export default function App() {
               </button>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
-                {/* Image Preview */}
-                <div className="rounded-2xl overflow-hidden border border-[#ddd9d2] bg-[#ebe9e5] aspect-square">
-                  <img
-                    src={detailProduct.image_url || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=600&q=80"}
-                    alt={detailProduct.name}
-                    className="w-full h-full object-cover"
-                  />
+                {/* Media Preview (Video or Image) */}
+                <div className="space-y-2">
+                  <div className="rounded-2xl overflow-hidden border border-[#ddd9d2] bg-[#ebe9e5] aspect-square relative flex items-center justify-center">
+                    {detailActiveMedia === "video" && detailProduct.video_url ? (
+                      <video
+                        src={detailProduct.video_url}
+                        controls
+                        playsInline
+                        autoPlay
+                        loop
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <img
+                        src={detailProduct.image_url || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=600&q=80"}
+                        alt={detailProduct.name}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+
+                  {/* Switcher Tab if video exists */}
+                  {detailProduct.video_url && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDetailActiveMedia("video")}
+                        className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                          detailActiveMedia === "video"
+                            ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
+                            : "bg-[#ebe9e5] text-[#151514] border-[#ddd9d2] hover:bg-[#ddd9d2]"
+                        }`}
+                      >
+                        <VideoCameraIcon className="w-4 h-4" />
+                        <span>Putar Video</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDetailActiveMedia("image")}
+                        className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                          detailActiveMedia === "image"
+                            ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
+                            : "bg-[#ebe9e5] text-[#151514] border-[#ddd9d2] hover:bg-[#ddd9d2]"
+                        }`}
+                      >
+                        <span>📸 Foto Produk</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Product Info */}
                 <div className="flex flex-col justify-between h-full space-y-4">
                   <div>
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      {detailProduct.affiliate_links && detailProduct.affiliate_links.length > 0 && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-white">
+                          🔗 Produk Afiliasi
+                        </span>
+                      )}
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                           detailProduct.is_digital
@@ -1032,12 +1139,17 @@ export default function App() {
                     </h2>
 
                     <div className="my-3">
+                      <span className="text-[10px] text-[#7a7469] block font-mono uppercase tracking-wider mb-0.5">
+                        {detailProduct.affiliate_links && detailProduct.affiliate_links.length > 0
+                          ? "Estimasi Harga Marketplace"
+                          : "Harga Resmi"}
+                      </span>
                       <span className="text-2xl font-black text-[#151514] num-tabular">
                         {formatIDR(detailProduct.price)}
                       </span>
                     </div>
 
-                    <p className="text-xs text-[#524d45] leading-relaxed max-h-40 overflow-y-auto">
+                    <p className="text-xs text-[#524d45] leading-relaxed max-h-36 overflow-y-auto">
                       {detailProduct.description || "Tidak ada deskripsi detail untuk produk ini."}
                     </p>
 
@@ -1045,62 +1157,122 @@ export default function App() {
                       <div>
                         Tipe Pengiriman:{" "}
                         <span className="font-semibold text-[#151514]">
-                          {detailProduct.is_digital ? "Download Instan" : "Ekspedisi / Kurir"}
+                          {detailProduct.affiliate_links && detailProduct.affiliate_links.length > 0
+                            ? "Sesuai Marketplace Terpilih"
+                            : detailProduct.is_digital
+                            ? "Download Instan"
+                            : "Ekspedisi / Kurir"}
                         </span>
                       </div>
                       <div>
                         Ketersediaan:{" "}
                         <span className="font-semibold text-[#151514]">
-                          {detailProduct.is_digital ? "Selalu Tersedia" : `Stok ${detailProduct.stock} unit`}
+                          {detailProduct.affiliate_links && detailProduct.affiliate_links.length > 0
+                            ? "Tersedia di Marketplace"
+                            : detailProduct.is_digital
+                            ? "Selalu Tersedia"
+                            : `Stok ${detailProduct.stock} unit`}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-semibold text-[#6b665c]">Jumlah:</span>
-                      <div className="flex items-center border border-[#ddd9d2] rounded-xl bg-[#ebe9e5]">
-                        <button
-                          onClick={() => setDetailQuantity(Math.max(1, detailQuantity - 1))}
-                          aria-label="Kurangi jumlah detail"
-                          className="p-2 text-[#524d45] hover:text-[#151514]"
-                        >
-                          <MinusIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="text-xs font-bold px-3 num-tabular text-[#151514]">{detailQuantity}</span>
-                        <button
-                          onClick={() => setDetailQuantity(detailQuantity + 1)}
-                          aria-label="Tambah jumlah detail"
-                          className="p-2 text-[#524d45] hover:text-[#151514]"
-                        >
-                          <PlusIcon className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                  {/* Actions: Affiliate vs Local Checkout */}
+                  <div className="pt-2">
+                    {detailProduct.affiliate_links && detailProduct.affiliate_links.length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl space-y-1">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                            <span>🔗</span>
+                            <span>Tersedia via Marketplace Resmi</span>
+                          </div>
+                          <p className="text-[11px] text-amber-800 leading-relaxed">
+                            Produk ini hanya dapat dipesan melalui mitra marketplace resmi kami. Klik tombol di bawah untuk langsung menuju aplikasi/situs terkait:
+                          </p>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-2">
-                      <button
-                        onClick={() => {
-                          addToCart(detailProduct, detailQuantity, false);
-                          setDetailProduct(null);
-                        }}
-                        className="py-3 px-4 rounded-xl bg-[#ebe9e5] hover:bg-[#ddd9d2] text-xs font-bold text-[#151514] border border-[#ddd9d2] transition-all tap-effect"
-                      >
-                        + Ke Keranjang
-                      </button>
-                      <button
-                        onClick={() => {
-                          addToCart(detailProduct, detailQuantity, false);
-                          setDetailProduct(null);
-                          navigateTo("cart", "/cart");
-                        }}
-                        className="py-3 px-4 rounded-xl bg-[#151514] hover:bg-[#2d2a25] text-xs font-bold text-[#ebe9e5] shadow-xs transition-all tap-effect"
-                      >
-                        Beli Sekarang
-                      </button>
-                    </div>
+                        <div className="space-y-2">
+                          {detailProduct.affiliate_links.map((link, idx) => {
+                            let brandBg = "bg-[#151514] hover:bg-[#2d2a25] text-white";
+                            let iconLabel = "🛍️";
+                            if (link.platform === "shopee") {
+                              brandBg = "bg-[#EE4D2D] hover:bg-[#d63f21] text-white shadow-sm shadow-orange-500/20";
+                              iconLabel = "🟠";
+                            } else if (link.platform === "tiktok") {
+                              brandBg = "bg-[#010101] hover:bg-[#222] text-white border border-slate-700 shadow-sm";
+                              iconLabel = "🎵";
+                            } else if (link.platform === "tokopedia") {
+                              brandBg = "bg-[#03AC0E] hover:bg-[#028b0b] text-white shadow-sm shadow-emerald-500/20";
+                              iconLabel = "🟢";
+                            } else if (link.platform === "lazada") {
+                              brandBg = "bg-[#0F146D] hover:bg-[#0c1055] text-white shadow-sm shadow-indigo-500/20";
+                              iconLabel = "🔵";
+                            }
+
+                            return (
+                              <a
+                                key={idx}
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`w-full py-3 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-between gap-2 tap-effect ${brandBg}`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span>{iconLabel}</span>
+                                  <span>{link.title || `Beli di ${link.platform.toUpperCase()}`}</span>
+                                </span>
+                                <ArrowTopRightOnSquareIcon className="w-4 h-4 flex-shrink-0" />
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-semibold text-[#6b665c]">Jumlah:</span>
+                          <div className="flex items-center border border-[#ddd9d2] rounded-xl bg-[#ebe9e5]">
+                            <button
+                              onClick={() => setDetailQuantity(Math.max(1, detailQuantity - 1))}
+                              aria-label="Kurangi jumlah detail"
+                              className="p-2 text-[#524d45] hover:text-[#151514]"
+                            >
+                              <MinusIcon className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="text-xs font-bold px-3 num-tabular text-[#151514]">{detailQuantity}</span>
+                            <button
+                              onClick={() => setDetailQuantity(detailQuantity + 1)}
+                              aria-label="Tambah jumlah detail"
+                              className="p-2 text-[#524d45] hover:text-[#151514]"
+                            >
+                              <PlusIcon className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pt-2">
+                          <button
+                            onClick={() => {
+                              addToCart(detailProduct, detailQuantity, false);
+                              setDetailProduct(null);
+                            }}
+                            className="py-3 px-4 rounded-xl bg-[#ebe9e5] hover:bg-[#ddd9d2] text-xs font-bold text-[#151514] border border-[#ddd9d2] transition-all tap-effect"
+                          >
+                            + Ke Keranjang
+                          </button>
+                          <button
+                            onClick={() => {
+                              addToCart(detailProduct, detailQuantity, false);
+                              setDetailProduct(null);
+                              navigateTo("cart", "/cart");
+                            }}
+                            className="py-3 px-4 rounded-xl bg-[#151514] hover:bg-[#2d2a25] text-xs font-bold text-[#ebe9e5] shadow-xs transition-all tap-effect"
+                          >
+                            Beli Sekarang
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -32,6 +33,10 @@ var ProductImages = objects.NewBucket("product-images", objects.BucketConfig{
 	Public: true,
 })
 
+var ProductVideos = objects.NewBucket("product-videos", objects.BucketConfig{
+	Public: true,
+})
+
 type Category struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
@@ -39,21 +44,29 @@ type Category struct {
 	Icon string `json:"icon"`
 }
 
+type AffiliateLink struct {
+	Platform string `json:"platform"` // e.g. "shopee", "tiktok", "tokopedia", "lazada", "other"
+	Title    string `json:"title"`
+	URL      string `json:"url"`
+}
+
 type Product struct {
-	ID             int64     `json:"id"`
-	Name           string    `json:"name"`
-	Slug           string    `json:"slug"`
-	Description    string    `json:"description"`
-	Price          int64     `json:"price"` // IDR
-	Stock          int       `json:"stock"`
-	IsDigital      bool      `json:"is_digital"`
-	DigitalFileURL string    `json:"digital_file_url,omitempty"`
-	WeightGrams    int       `json:"weight_grams"`
-	ImageURL       string    `json:"image_url"`
-	CategoryID     *int64    `json:"category_id"`
-	CategoryName   string    `json:"category_name,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             int64           `json:"id"`
+	Name           string          `json:"name"`
+	Slug           string          `json:"slug"`
+	Description    string          `json:"description"`
+	Price          int64           `json:"price"` // IDR
+	Stock          int             `json:"stock"`
+	IsDigital      bool            `json:"is_digital"`
+	DigitalFileURL string          `json:"digital_file_url,omitempty"`
+	WeightGrams    int             `json:"weight_grams"`
+	ImageURL       string          `json:"image_url"`
+	VideoURL       string          `json:"video_url,omitempty"`
+	AffiliateLinks []AffiliateLink `json:"affiliate_links"`
+	CategoryID     *int64          `json:"category_id"`
+	CategoryName   string          `json:"category_name,omitempty"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
 type ListParams struct {
@@ -79,7 +92,9 @@ func List(ctx context.Context, p *ListParams) (*ListResponse, error) {
 
 	query := `
 		SELECT p.id, p.name, p.slug, p.description, p.price, p.stock, 
-		       p.is_digital, p.weight_grams, p.image_url, p.category_id, 
+		       p.is_digital, COALESCE(p.digital_file_url, ''), p.weight_grams, p.image_url, 
+		       COALESCE(p.video_url, ''), COALESCE(p.affiliate_links, '[]'::jsonb),
+		       p.category_id, 
 		       COALESCE(c.name, '') as category_name, p.created_at, p.updated_at
 		FROM products p
 		LEFT JOIN categories c ON p.category_id = c.id
@@ -122,12 +137,20 @@ func List(ctx context.Context, p *ListParams) (*ListResponse, error) {
 	var products []*Product
 	for rows.Next() {
 		var pr Product
+		var affiliateLinksRaw []byte
 		if err := rows.Scan(
 			&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
-			&pr.IsDigital, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+			&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL,
+			&pr.VideoURL, &affiliateLinksRaw, &pr.CategoryID,
 			&pr.CategoryName, &pr.CreatedAt, &pr.UpdatedAt,
 		); err != nil {
 			return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+		}
+		if len(affiliateLinksRaw) > 0 {
+			_ = json.Unmarshal(affiliateLinksRaw, &pr.AffiliateLinks)
+		}
+		if pr.AffiliateLinks == nil {
+			pr.AffiliateLinks = []AffiliateLink{}
 		}
 		products = append(products, &pr)
 	}
@@ -144,31 +167,30 @@ func List(ctx context.Context, p *ListParams) (*ListResponse, error) {
 func Get(ctx context.Context, identifier string) (*Product, error) {
 	var pr Product
 	var err error
+	var affiliateLinksRaw []byte
+
+	query := `
+		SELECT p.id, p.name, p.slug, p.description, p.price, p.stock, 
+		       p.is_digital, COALESCE(p.digital_file_url, ''), p.weight_grams, p.image_url, 
+		       COALESCE(p.video_url, ''), COALESCE(p.affiliate_links, '[]'::jsonb),
+		       p.category_id, 
+		       COALESCE(c.name, '') as category_name, p.created_at, p.updated_at
+		FROM products p
+		LEFT JOIN categories c ON p.category_id = c.id
+	`
 
 	if id, parseErr := strconv.ParseInt(identifier, 10, 64); parseErr == nil {
-		err = db.QueryRow(ctx, `
-			SELECT p.id, p.name, p.slug, p.description, p.price, p.stock, 
-			       p.is_digital, p.weight_grams, p.image_url, p.category_id, 
-			       COALESCE(c.name, '') as category_name, p.created_at, p.updated_at
-			FROM products p
-			LEFT JOIN categories c ON p.category_id = c.id
-			WHERE p.id = $1
-		`, id).Scan(
+		err = db.QueryRow(ctx, query+` WHERE p.id = $1`, id).Scan(
 			&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
-			&pr.IsDigital, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+			&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL,
+			&pr.VideoURL, &affiliateLinksRaw, &pr.CategoryID,
 			&pr.CategoryName, &pr.CreatedAt, &pr.UpdatedAt,
 		)
 	} else {
-		err = db.QueryRow(ctx, `
-			SELECT p.id, p.name, p.slug, p.description, p.price, p.stock, 
-			       p.is_digital, p.weight_grams, p.image_url, p.category_id, 
-			       COALESCE(c.name, '') as category_name, p.created_at, p.updated_at
-			FROM products p
-			LEFT JOIN categories c ON p.category_id = c.id
-			WHERE p.slug = $1
-		`, identifier).Scan(
+		err = db.QueryRow(ctx, query+` WHERE p.slug = $1`, identifier).Scan(
 			&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
-			&pr.IsDigital, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+			&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL,
+			&pr.VideoURL, &affiliateLinksRaw, &pr.CategoryID,
 			&pr.CategoryName, &pr.CreatedAt, &pr.UpdatedAt,
 		)
 	}
@@ -177,6 +199,13 @@ func Get(ctx context.Context, identifier string) (*Product, error) {
 		return nil, &errs.Error{Code: errs.NotFound, Message: "Product not found"}
 	} else if err != nil {
 		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	if len(affiliateLinksRaw) > 0 {
+		_ = json.Unmarshal(affiliateLinksRaw, &pr.AffiliateLinks)
+	}
+	if pr.AffiliateLinks == nil {
+		pr.AffiliateLinks = []AffiliateLink{}
 	}
 
 	return &pr, nil
@@ -208,15 +237,17 @@ func Categories(ctx context.Context) (*CategoriesResponse, error) {
 }
 
 type CreateProductParams struct {
-	Name           string `json:"name"`
-	Description    string `json:"description"`
-	Price          int64  `json:"price"`
-	Stock          int    `json:"stock"`
-	IsDigital      bool   `json:"is_digital"`
-	DigitalFileURL string `json:"digital_file_url,omitempty"`
-	WeightGrams    int    `json:"weight_grams"`
-	ImageURL       string `json:"image_url"`
-	CategoryID     *int64 `json:"category_id"`
+	Name           string          `json:"name"`
+	Description    string          `json:"description"`
+	Price          int64           `json:"price"`
+	Stock          int             `json:"stock"`
+	IsDigital      bool            `json:"is_digital"`
+	DigitalFileURL string          `json:"digital_file_url,omitempty"`
+	WeightGrams    int             `json:"weight_grams"`
+	ImageURL       string          `json:"image_url"`
+	VideoURL       string          `json:"video_url,omitempty"`
+	AffiliateLinks []AffiliateLink `json:"affiliate_links,omitempty"`
+	CategoryID     *int64          `json:"category_id"`
 }
 
 // Create adds a new product (admin only).
@@ -233,18 +264,32 @@ func Create(ctx context.Context, p *CreateProductParams) (*Product, error) {
 		p.WeightGrams = 500
 	}
 
+	linksJSON, _ := json.Marshal(p.AffiliateLinks)
+	if len(p.AffiliateLinks) == 0 {
+		linksJSON = []byte("[]")
+	}
+
 	var pr Product
+	var affiliateLinksRaw []byte
 	err = db.QueryRow(ctx, `
-		INSERT INTO products (name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, category_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
-		RETURNING id, name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, category_id, created_at, updated_at
-	`, p.Name, slug, p.Description, p.Price, p.Stock, p.IsDigital, p.DigitalFileURL, p.WeightGrams, p.ImageURL, p.CategoryID).Scan(
+		INSERT INTO products (name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, video_url, affiliate_links, category_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+		RETURNING id, name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, video_url, affiliate_links, category_id, created_at, updated_at
+	`, p.Name, slug, p.Description, p.Price, p.Stock, p.IsDigital, p.DigitalFileURL, p.WeightGrams, p.ImageURL, p.VideoURL, linksJSON, p.CategoryID).Scan(
 		&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
-		&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+		&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL,
+		&pr.VideoURL, &affiliateLinksRaw, &pr.CategoryID,
 		&pr.CreatedAt, &pr.UpdatedAt,
 	)
 	if err != nil {
 		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	if len(affiliateLinksRaw) > 0 {
+		_ = json.Unmarshal(affiliateLinksRaw, &pr.AffiliateLinks)
+	}
+	if pr.AffiliateLinks == nil {
+		pr.AffiliateLinks = []AffiliateLink{}
 	}
 
 	return &pr, nil
@@ -264,23 +309,37 @@ func Update(ctx context.Context, id int64, p *CreateProductParams) (*Product, er
 		p.WeightGrams = 500
 	}
 
+	linksJSON, _ := json.Marshal(p.AffiliateLinks)
+	if len(p.AffiliateLinks) == 0 {
+		linksJSON = []byte("[]")
+	}
+
 	var pr Product
+	var affiliateLinksRaw []byte
 	err = db.QueryRow(ctx, `
 		UPDATE products
 		SET name = $1, slug = $2, description = $3, price = $4, stock = $5,
 		    is_digital = $6, digital_file_url = $7, weight_grams = $8, image_url = $9,
-		    category_id = $10, updated_at = NOW()
-		WHERE id = $11
-		RETURNING id, name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, category_id, created_at, updated_at
-	`, p.Name, slug, p.Description, p.Price, p.Stock, p.IsDigital, p.DigitalFileURL, p.WeightGrams, p.ImageURL, p.CategoryID, id).Scan(
+		    video_url = $10, affiliate_links = $11, category_id = $12, updated_at = NOW()
+		WHERE id = $13
+		RETURNING id, name, slug, description, price, stock, is_digital, digital_file_url, weight_grams, image_url, video_url, affiliate_links, category_id, created_at, updated_at
+	`, p.Name, slug, p.Description, p.Price, p.Stock, p.IsDigital, p.DigitalFileURL, p.WeightGrams, p.ImageURL, p.VideoURL, linksJSON, p.CategoryID, id).Scan(
 		&pr.ID, &pr.Name, &pr.Slug, &pr.Description, &pr.Price, &pr.Stock,
-		&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL, &pr.CategoryID,
+		&pr.IsDigital, &pr.DigitalFileURL, &pr.WeightGrams, &pr.ImageURL,
+		&pr.VideoURL, &affiliateLinksRaw, &pr.CategoryID,
 		&pr.CreatedAt, &pr.UpdatedAt,
 	)
 	if errors.Is(err, sqldb.ErrNoRows) {
 		return nil, &errs.Error{Code: errs.NotFound, Message: "Product not found"}
 	} else if err != nil {
 		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	if len(affiliateLinksRaw) > 0 {
+		_ = json.Unmarshal(affiliateLinksRaw, &pr.AffiliateLinks)
+	}
+	if pr.AffiliateLinks == nil {
+		pr.AffiliateLinks = []AffiliateLink{}
 	}
 
 	return &pr, nil
@@ -530,6 +589,129 @@ func ServeProductImage(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+
+	_, _ = io.Copy(w, reader)
+}
+
+type UploadVideoParams struct {
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	Data        string `json:"data"` // base64 string
+}
+
+type UploadVideoResponse struct {
+	URL      string `json:"url"`
+	FileName string `json:"file_name"`
+}
+
+// UploadProductVideo uploads a video to the product-videos bucket (admin only).
+//
+//encore:api auth method=POST path=/upload/video
+func UploadProductVideo(ctx context.Context, p *UploadVideoParams) (*UploadVideoResponse, error) {
+	usr, err := auth.Me(ctx)
+	if err != nil || usr.Role != "admin" {
+		return nil, &errs.Error{Code: errs.PermissionDenied, Message: "Admin role required"}
+	}
+
+	if p.Data == "" {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Video data is required"}
+	}
+
+	data := p.Data
+	if idx := strings.Index(data, ","); idx != -1 {
+		data = data[idx+1:]
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Invalid base64 video data"}
+	}
+
+	// Max 50MB
+	if len(decoded) > 50*1024*1024 {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Ukuran file video maksimal 50MB"}
+	}
+
+	detectedMime := http.DetectContentType(decoded)
+	safeExt := ".mp4"
+	switch {
+	case strings.Contains(detectedMime, "mp4") || strings.HasSuffix(strings.ToLower(p.FileName), ".mp4"):
+		safeExt = ".mp4"
+		detectedMime = "video/mp4"
+	case strings.Contains(detectedMime, "webm") || strings.HasSuffix(strings.ToLower(p.FileName), ".webm"):
+		safeExt = ".webm"
+		detectedMime = "video/webm"
+	case strings.Contains(detectedMime, "ogg") || strings.HasSuffix(strings.ToLower(p.FileName), ".ogv"):
+		safeExt = ".ogv"
+		detectedMime = "video/ogg"
+	case strings.HasSuffix(strings.ToLower(p.FileName), ".mov"):
+		safeExt = ".mov"
+		detectedMime = "video/quicktime"
+	default:
+		if strings.HasPrefix(p.ContentType, "video/") {
+			detectedMime = p.ContentType
+			ext := filepath.Ext(p.FileName)
+			if ext != "" {
+				safeExt = ext
+			}
+		} else {
+			return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Format video harus berupa MP4, WebM, OGG, atau MOV"}
+		}
+	}
+
+	rawBase := filepath.Base(filepath.Clean(p.FileName))
+	cleanBase := slugify(strings.TrimSuffix(rawBase, filepath.Ext(rawBase)))
+	if cleanBase == "" {
+		cleanBase = "video"
+	}
+	objectName := fmt.Sprintf("%s-%d%s", cleanBase, time.Now().UnixNano()/1e6, safeExt)
+
+	writer := ProductVideos.Upload(ctx, objectName, objects.WithUploadAttrs(objects.UploadAttrs{
+		ContentType: detectedMime,
+	}))
+	if _, err := writer.Write(decoded); err != nil {
+		writer.Abort(err)
+		return nil, &errs.Error{Code: errs.Internal, Message: fmt.Sprintf("failed to write video to bucket: %v", err)}
+	}
+	if err := writer.Close(); err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: fmt.Sprintf("failed to finalize video upload: %v", err)}
+	}
+
+	videoURL := fmt.Sprintf("/videos/%s", objectName)
+	if pub := ProductVideos.PublicURL(objectName); pub != nil && pub.String() != "" {
+		videoURL = pub.String()
+	}
+
+	return &UploadVideoResponse{
+		URL:      videoURL,
+		FileName: objectName,
+	}, nil
+}
+
+// ServeProductVideo serves video stored in the product-videos bucket with streaming range support.
+//
+//encore:api public raw method=GET path=/videos/:name
+func ServeProductVideo(w http.ResponseWriter, req *http.Request) {
+	name := filepath.Base(filepath.Clean(req.URL.Path))
+	if name == "" || name == "." || name == "/" {
+		http.Error(w, "Video name required", http.StatusBadRequest)
+		return
+	}
+
+	ctx := req.Context()
+	reader := ProductVideos.Download(ctx, name)
+	defer reader.Close()
+
+	attrs, err := ProductVideos.Attrs(ctx, name)
+	if err == nil && attrs.ContentType != "" {
+		w.Header().Set("Content-Type", attrs.ContentType)
+	} else {
+		w.Header().Set("Content-Type", "video/mp4")
+	}
+
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "public, max-age=86400")
 
 	_, _ = io.Copy(w, reader)

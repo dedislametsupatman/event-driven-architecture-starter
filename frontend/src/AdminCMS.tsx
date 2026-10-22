@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { api, Product, Order, Category } from "./api";
+import { api, Product, Order, Category, AffiliateLink } from "./api";
 
 interface AdminCMSProps {
   onBackToStore: () => void;
@@ -51,10 +51,15 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
   const [formDigitalUrl, setFormDigitalUrl] = useState("");
   const [formWeightGrams, setFormWeightGrams] = useState(500);
   const [formImageUrl, setFormImageUrl] = useState("");
+  const [formVideoUrl, setFormVideoUrl] = useState("");
+  const [formAffiliateLinks, setFormAffiliateLinks] = useState<AffiliateLink[]>([]);
   const [formCategoryId, setFormCategoryId] = useState<number | undefined>(undefined);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [showManualUrl, setShowManualUrl] = useState(false);
+  const [showManualVideoUrl, setShowManualVideoUrl] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const videoFileInputRef = React.useRef<HTMLInputElement | null>(null);
 
   // Orders State
   const [orders, setOrders] = useState<Order[]>([]);
@@ -429,7 +434,11 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
     setFormDigitalUrl(p.digital_file_url || "");
     setFormWeightGrams(p.weight_grams);
     setFormImageUrl(p.image_url);
+    setFormVideoUrl(p.video_url || "");
+    setFormAffiliateLinks(p.affiliate_links || []);
     setFormCategoryId(p.category_id);
+    setShowManualUrl(false);
+    setShowManualVideoUrl(false);
     setIsEditingProduct(true);
   };
 
@@ -444,7 +453,11 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
     setFormDigitalUrl("");
     setFormWeightGrams(500);
     setFormImageUrl("https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&w=800&q=80");
+    setFormVideoUrl("");
+    setFormAffiliateLinks([]);
     setFormCategoryId(categories[0]?.id || 1);
+    setShowManualUrl(false);
+    setShowManualVideoUrl(false);
     setIsCreatingProduct(true);
   };
 
@@ -492,6 +505,71 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
     }
   };
 
+  const handleVideoFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("video/") && !file.name.match(/\.(mp4|webm|mov|ogv)$/i)) {
+      showNotification("Format file harus berupa video (MP4, WebM, MOV)", true);
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) {
+      showNotification("Ukuran video maksimal 50MB", true);
+      return;
+    }
+
+    setUploadingVideo(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result as string;
+          const res = await api.uploadProductVideo({
+            file_name: file.name,
+            content_type: file.type || "video/mp4",
+            data: base64Data,
+          });
+          setFormVideoUrl(res.url);
+          showNotification("Video produk berhasil di-upload ke bucket!");
+        } catch (err: any) {
+          showNotification(err.message || "Gagal meng-upload video ke bucket", true);
+        } finally {
+          setUploadingVideo(false);
+        }
+      };
+      reader.onerror = () => {
+        showNotification("Gagal membaca file video", true);
+        setUploadingVideo(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      showNotification(err.message || "Gagal upload video", true);
+      setUploadingVideo(false);
+    }
+  };
+
+  const handleAddAffiliateLink = () => {
+    setFormAffiliateLinks((prev) => [
+      ...prev,
+      { platform: "shopee", title: "Beli di Shopee", url: "" },
+    ]);
+  };
+
+  const handleUpdateAffiliateLink = (
+    index: number,
+    field: keyof AffiliateLink,
+    value: string
+  ) => {
+    setFormAffiliateLinks((prev) =>
+      prev.map((item, idx) => (idx === index ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleRemoveAffiliateLink = (index: number) => {
+    setFormAffiliateLinks((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || formPrice <= 0) {
@@ -509,6 +587,8 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       digital_file_url: formDigitalUrl,
       weight_grams: formWeightGrams,
       image_url: formImageUrl,
+      video_url: formVideoUrl.trim(),
+      affiliate_links: formAffiliateLinks.filter((l) => l.url.trim() !== ""),
       category_id: formCategoryId,
     };
 
@@ -1168,6 +1248,22 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                                   </span>
                                 )}
                               </div>
+                              {p.affiliate_links && p.affiliate_links.length > 0 && (
+                                <div className="pt-0.5">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                    <span>🔗</span>
+                                    <span>Afiliasi ({p.affiliate_links.map(l => l.platform).join(", ")})</span>
+                                  </span>
+                                </div>
+                              )}
+                              {p.video_url && (
+                                <div className="pt-0.5">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                                    <span>🎬</span>
+                                    <span>Ada Video</span>
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </td>
 
@@ -2246,6 +2342,240 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                     />
                     <p className="text-[11px] text-slate-400 mt-1">
                       Masukkan URL gambar publik langsung jika tidak ingin meng-upload file baru.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Product Video Section */}
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Video Produk (Landing Page & Detail)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Video akan otomatis dapat diputar di landing page & detail produk.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowManualVideoUrl(!showManualVideoUrl)}
+                    className="text-[11px] font-semibold text-blue-600 hover:text-blue-800"
+                  >
+                    {showManualVideoUrl ? "← Gunakan Upload File" : "Tulis URL Manual"}
+                  </button>
+                </div>
+
+                {/* Hidden Video Input */}
+                <input
+                  type="file"
+                  ref={videoFileInputRef}
+                  onChange={handleVideoFileSelect}
+                  accept="video/mp4, video/webm, video/quicktime, video/ogg"
+                  className="hidden"
+                />
+
+                {!showManualVideoUrl ? (
+                  <div>
+                    {formVideoUrl ? (
+                      <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                        <div className="rounded-xl overflow-hidden bg-black max-h-48 flex items-center justify-center">
+                          <video
+                            src={formVideoUrl}
+                            controls
+                            playsInline
+                            className="max-h-48 w-full object-contain"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="text-[11px] text-slate-500 font-mono truncate max-w-xs" title={formVideoUrl}>
+                            {formVideoUrl}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => videoFileInputRef.current?.click()}
+                              disabled={uploadingVideo}
+                              className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 font-semibold rounded-lg text-[11px] border border-slate-200 shadow-xs transition"
+                            >
+                              Ganti Video
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormVideoUrl("")}
+                              className="px-2.5 py-1 text-rose-600 hover:bg-rose-50 font-semibold rounded-lg text-[11px] transition"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => videoFileInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-2xl p-5 text-center cursor-pointer transition-all ${
+                          uploadingVideo
+                            ? "border-indigo-400 bg-indigo-50/50"
+                            : "border-slate-300 hover:border-indigo-500 bg-slate-50/70 hover:bg-indigo-50/30"
+                        }`}
+                      >
+                        {uploadingVideo ? (
+                          <div className="flex flex-col items-center justify-center py-2">
+                            <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2" />
+                            <p className="text-xs font-bold text-indigo-700">Mengunggah Video ke Bucket Storage...</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Maksimal 50MB (MP4, WebM, MOV)</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg mb-2 shadow-xs">
+                              🎬
+                            </div>
+                            <p className="text-xs font-bold text-slate-800">
+                              Klik untuk Upload Video Produk
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              Format MP4, WebM, MOV (Max 50MB) tersimpan di Object Storage
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="url"
+                      value={formVideoUrl}
+                      onChange={(e) => setFormVideoUrl(e.target.value)}
+                      placeholder="https://cdn.example.com/video.mp4 atau https://www.youtube.com/..."
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Masukkan URL video langsung (MP4/WebM) jika sudah dihosting di server lain.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Affiliate Marketplace Links Section */}
+              <div className="space-y-3 pt-3 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                      Link Afiliasi Marketplace (Shopee, TikTok, dll.)
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Jika diisi, barang tidak bisa dibeli via keranjang lokal dan akan muncul tombol direct link afiliasi.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddAffiliateLink}
+                    className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold rounded-lg text-xs border border-amber-200 transition flex items-center gap-1 shadow-2xs"
+                  >
+                    <span>+</span> Tambah Link
+                  </button>
+                </div>
+
+                {formAffiliateLinks.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {formAffiliateLinks.map((link, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3 bg-amber-50/50 border border-amber-200/80 rounded-xl space-y-2"
+                      >
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                          {/* Platform Selector */}
+                          <div className="sm:col-span-4">
+                            <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-0.5">
+                              Platform
+                            </label>
+                            <select
+                              value={link.platform}
+                              onChange={(e) => {
+                                const newPlat = e.target.value;
+                                handleUpdateAffiliateLink(idx, "platform", newPlat);
+                                if (!link.title || link.title.startsWith("Beli di")) {
+                                  const defaultTitles: Record<string, string> = {
+                                    shopee: "Beli di Shopee",
+                                    tiktok: "Beli di TikTok Shop",
+                                    tokopedia: "Beli di Tokopedia",
+                                    lazada: "Beli di Lazada",
+                                    other: "Beli di Marketplace",
+                                  };
+                                  handleUpdateAffiliateLink(
+                                    idx,
+                                    "title",
+                                    defaultTitles[newPlat] || "Beli di Marketplace"
+                                  );
+                                }
+                              }}
+                              className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            >
+                              <option value="shopee">Shopee</option>
+                              <option value="tiktok">TikTok Shop</option>
+                              <option value="tokopedia">Tokopedia</option>
+                              <option value="lazada">Lazada</option>
+                              <option value="other">Lainnya / Custom</option>
+                            </select>
+                          </div>
+
+                          {/* Button Title */}
+                          <div className="sm:col-span-7">
+                            <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-0.5">
+                              Label Tombol
+                            </label>
+                            <input
+                              type="text"
+                              value={link.title}
+                              onChange={(e) => handleUpdateAffiliateLink(idx, "title", e.target.value)}
+                              placeholder="Contoh: Beli di Shopee Mall"
+                              className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            />
+                          </div>
+
+                          {/* Delete Button */}
+                          <div className="sm:col-span-1 flex justify-end sm:pt-4">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAffiliateLink(idx)}
+                              title="Hapus Link"
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* URL input */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-0.5">
+                            URL Direct Affiliate
+                          </label>
+                          <input
+                            type="url"
+                            required
+                            value={link.url}
+                            onChange={(e) => handleUpdateAffiliateLink(idx, "url", e.target.value)}
+                            placeholder="https://shope.ee/... atau https://vt.tiktok.com/..."
+                            className="w-full px-2.5 py-1.5 bg-white border border-amber-200 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    <div className="p-2.5 bg-amber-100/60 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
+                      <span className="font-bold">⚠️ Catatan:</span>
+                      <span>
+                        Produk ini akan diberi label khusus <strong>Afiliasi</strong> dan tombol <em>Beli Langsung</em> serta <em>+ Keranjang</em> otomatis dinonaktifkan di etalase toko.
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                    <p className="text-xs text-slate-500">Belum ada link afiliasi yang ditambahkan.</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Klik <strong>"+ Tambah Link"</strong> di atas jika produk ini dijual via Shopee, TikTok Shop, dll.
                     </p>
                   </div>
                 )}

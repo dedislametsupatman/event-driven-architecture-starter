@@ -1,0 +1,3 @@
+ALTER TABLE products 
+ADD COLUMN IF NOT EXISTS affiliate_links JSONB DEFAULT '[]'::jsonb,
+ADD COLUMN IF NOT EXISTS video_url TEXT DEFAULT '';
