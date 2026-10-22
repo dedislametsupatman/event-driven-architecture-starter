@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   api,
   Product,
@@ -149,18 +150,18 @@ export function CartPage({
 
       {cart.length === 0 ? (
         /* Empty Cart State */
-        <div className="my-16 bg-white border border-slate-200 rounded-3xl p-12 text-center max-w-lg mx-auto shadow-xs space-y-4">
-          <div className="w-20 h-20 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+        <div className="my-16 bg-[#f5f3ef] border border-[#ddd9d2] rounded-3xl p-12 text-center max-w-lg mx-auto shadow-xs space-y-4">
+          <div className="w-20 h-20 rounded-2xl bg-[#ebe9e5] text-[#151514] flex items-center justify-center mx-auto border border-[#ddd9d2]">
             <ShoppingBagIcon className="w-10 h-10" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900">Keranjang Belanja Anda Kosong</h2>
-          <p className="text-xs text-slate-500 leading-relaxed">
+          <h2 className="text-xl font-bold text-[#151514]">Keranjang Belanja Anda Kosong</h2>
+          <p className="text-xs text-[#6b665c] leading-relaxed">
             Belum ada produk yang ditambahkan ke keranjang. Temukan perlengkapan setup kerja minimalis dan aset digital eksklusif sekarang.
           </p>
           <div className="pt-3">
             <button
               onClick={() => onNavigate("store", "/")}
-              className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm transition-all"
+              className="px-6 py-3 rounded-xl bg-[#151514] hover:bg-[#2d2a25] text-[#ebe9e5] font-bold text-xs shadow-sm transition-all"
             >
               Mulai Belanja Sekarang →
             </button>
@@ -171,113 +172,123 @@ export function CartPage({
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Cart Items List */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs">
-              <h2 className="text-base font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center justify-between">
+            <div className="bg-[#f5f3ef] border border-[#ddd9d2] rounded-2xl p-6 shadow-xs">
+              <h2 className="text-base font-bold text-[#151514] pb-3 border-b border-[#ddd9d2] flex items-center justify-between">
                 <span>Daftar Produk ({cart.reduce((t, i) => t + i.quantity, 0)} item)</span>
                 {totalWeightGrams > 0 && (
-                  <span className="text-xs font-normal text-slate-500">
+                  <span className="text-xs font-normal text-[#6b665c]">
                     Estimasi Berat: {(totalWeightGrams / 1000).toFixed(1)} kg
                   </span>
                 )}
               </h2>
 
-              <div className="divide-y divide-slate-100">
-                {cart.map((item) => (
-                  <div key={item.product.id} className="py-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                    {/* Thumbnail */}
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200">
-                      <img
-                        src={item.product.image_url}
-                        alt={item.product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                          item.product.is_digital ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"
-                        }`}>
-                          {item.product.is_digital ? "Aset Digital" : "Barang Fisik"}
-                        </span>
-                        {item.product.category_name && (
-                          <span className="text-slate-400 text-xs">• {item.product.category_name}</span>
-                        )}
-                      </div>
-                      <h3 className="font-bold text-slate-900 text-sm">{item.product.name}</h3>
-                      <p className="text-xs font-black text-blue-600 num-tabular mt-0.5">
-                        {formatIDR(item.product.price)}
-                      </p>
-                    </div>
-
-                    {/* Quantity Controls & Total */}
-                    <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
-                      <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
-                        <button
-                          onClick={() => onUpdateQuantity(item.product.id, -1)}
-                          className="p-1.5 hover:bg-slate-200 text-slate-600 transition-colors"
-                          aria-label="Kurangi kuantitas"
-                        >
-                          <MinusIcon className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="px-3 text-xs font-bold text-slate-900 num-tabular">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => onUpdateQuantity(item.product.id, 1)}
-                          className="p-1.5 hover:bg-slate-200 text-slate-600 transition-colors"
-                          aria-label="Tambah kuantitas"
-                        >
-                          <PlusIcon className="w-3.5 h-3.5" />
-                        </button>
+              <div className="divide-y divide-[#ddd9d2]">
+                <AnimatePresence initial={false}>
+                  {cart.map((item) => (
+                    <motion.div
+                      key={item.product.id}
+                      layout
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: -20, height: 0, paddingTop: 0, paddingBottom: 0, overflow: "hidden" }}
+                      transition={{ duration: 0.2 }}
+                      className="py-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center"
+                    >
+                      {/* Thumbnail */}
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-[#ebe9e5] overflow-hidden flex-shrink-0 border border-[#ddd9d2]">
+                        <img
+                          src={item.product.image_url}
+                          alt={item.product.name}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
 
-                      <span className="font-black text-slate-900 text-sm num-tabular w-24 text-right">
-                        {formatIDR(item.product.price * item.quantity)}
-                      </span>
+                      {/* Details */}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                            item.product.is_digital ? "bg-[#2d2a25] text-[#ebe9e5]" : "bg-[#ddd9d2] text-[#151514]"
+                          }`}>
+                            {item.product.is_digital ? "Aset Digital" : "Barang Fisik"}
+                          </span>
+                          {item.product.category_name && (
+                            <span className="text-[#7a7469] text-xs">• {item.product.category_name}</span>
+                          )}
+                        </div>
+                        <h3 className="font-bold text-[#151514] text-sm">{item.product.name}</h3>
+                        <p className="text-xs font-black text-[#151514] num-tabular mt-0.5">
+                          {formatIDR(item.product.price)}
+                        </p>
+                      </div>
 
-                      <button
-                        onClick={() => onRemoveItem(item.product.id)}
-                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
-                        title="Hapus dari keranjang"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                      {/* Quantity Controls & Total */}
+                      <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                        <div className="flex items-center border border-[#ddd9d2] rounded-xl bg-[#ebe9e5] overflow-hidden">
+                          <button
+                            onClick={() => onUpdateQuantity(item.product.id, -1)}
+                            className="p-1.5 hover:bg-[#ddd9d2] text-[#151514] transition-colors"
+                            aria-label="Kurangi kuantitas"
+                          >
+                            <MinusIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="px-3 text-xs font-bold text-[#151514] num-tabular">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => onUpdateQuantity(item.product.id, 1)}
+                            className="p-1.5 hover:bg-[#ddd9d2] text-[#151514] transition-colors"
+                            aria-label="Tambah kuantitas"
+                          >
+                            <PlusIcon className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <span className="font-black text-[#151514] text-sm num-tabular w-24 text-right">
+                          {formatIDR(item.product.price * item.quantity)}
+                        </span>
+
+                        <button
+                          onClick={() => onRemoveItem(item.product.id)}
+                          className="text-[#7a7469] hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                          title="Hapus dari keranjang"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
 
               {/* Bottom Add More Button */}
-              <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+              <div className="pt-4 border-t border-[#ddd9d2] flex justify-between items-center">
                 <button
                   onClick={() => onNavigate("store", "/")}
-                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  className="text-xs font-bold text-[#151514] hover:underline flex items-center gap-1"
                 >
                   + Tambah Produk Lainnya
                 </button>
-                <span className="text-xs text-slate-500">
-                  Subtotal: <strong className="text-slate-900 num-tabular">{formatIDR(cartSubtotal)}</strong>
+                <span className="text-xs text-[#6b665c]">
+                  Subtotal: <strong className="text-[#151514] num-tabular">{formatIDR(cartSubtotal)}</strong>
                 </span>
               </div>
             </div>
 
             {/* Jaminan & Layanan */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-3 text-xs text-slate-700">
+              <div className="bg-[#f5f3ef] border border-[#ddd9d2] rounded-xl p-4 flex items-center gap-3 text-xs text-[#151514]">
                 <ShieldCheckIcon className="w-6 h-6 text-emerald-600 flex-shrink-0" />
                 <div>
-                  <span className="font-bold text-slate-900">Garansi 100% Aman</span>
-                  <p className="text-[11px] text-slate-500">Privasi dan transaksi terlindungi dengan enkripsi tinggi.</p>
+                  <span className="font-bold text-[#151514]">Garansi 100% Aman</span>
+                  <p className="text-[11px] text-[#6b665c]">Privasi dan transaksi terlindungi dengan enkripsi tinggi.</p>
                 </div>
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center gap-3 text-xs text-slate-700">
-                <TruckIcon className="w-6 h-6 text-blue-600 flex-shrink-0" />
+              <div className="bg-[#f5f3ef] border border-[#ddd9d2] rounded-xl p-4 flex items-center gap-3 text-xs text-[#151514]">
+                <TruckIcon className="w-6 h-6 text-[#151514] flex-shrink-0" />
                 <div>
-                  <span className="font-bold text-slate-900">Pengiriman Cepat</span>
-                  <p className="text-[11px] text-slate-500">Produk digital instan &amp; pengiriman fisik berpelacak resi.</p>
+                  <span className="font-bold text-[#151514]">Pengiriman Cepat</span>
+                  <p className="text-[11px] text-[#6b665c]">Produk digital instan &amp; pengiriman fisik berpelacak resi.</p>
                 </div>
               </div>
             </div>
@@ -285,15 +296,15 @@ export function CartPage({
 
           {/* Right Column: Checkout Form & Summary */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
-              <h2 className="text-base font-bold text-slate-900 pb-3 border-b border-slate-100">
+            <div className="bg-[#f5f3ef] border border-[#ddd9d2] rounded-2xl p-6 shadow-sm space-y-5 text-[#151514]">
+              <h2 className="text-base font-bold text-[#151514] pb-3 border-b border-[#ddd9d2]">
                 Informasi &amp; Pembayaran
               </h2>
 
               <form onSubmit={handleCheckoutSubmit} className="space-y-4">
                 {/* Kontak */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label className="block text-xs font-bold text-[#151514] mb-1">
                     Nama Lengkap <span className="text-rose-500">*</span>
                   </label>
                   <input
@@ -302,13 +313,13 @@ export function CartPage({
                     placeholder="Nama penerima pesanan"
                     value={checkoutForm.customer_name}
                     onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_name: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                    className="w-full bg-[#ebe9e5] border border-[#ddd9d2] rounded-xl px-3.5 py-2 text-xs text-[#151514] focus:outline-none focus:bg-[#faf9f7] focus:border-[#151514]"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-[#151514] mb-1">
                       Email Aktif <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -317,12 +328,12 @@ export function CartPage({
                       placeholder="email@example.com"
                       value={checkoutForm.customer_email}
                       onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_email: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                      className="w-full bg-[#ebe9e5] border border-[#ddd9d2] rounded-xl px-3.5 py-2 text-xs text-[#151514] focus:outline-none focus:bg-[#faf9f7] focus:border-[#151514]"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label className="block text-xs font-bold text-[#151514] mb-1">
                       No. WhatsApp / HP <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -331,16 +342,16 @@ export function CartPage({
                       placeholder="08123456789"
                       value={checkoutForm.customer_phone}
                       onChange={(e) => setCheckoutForm({ ...checkoutForm, customer_phone: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                      className="w-full bg-[#ebe9e5] border border-[#ddd9d2] rounded-xl px-3.5 py-2 text-xs text-[#151514] focus:outline-none focus:bg-[#faf9f7] focus:border-[#151514]"
                     />
                   </div>
                 </div>
 
                 {/* Alamat Pengiriman jika ada barang fisik */}
                 {hasPhysicalItems ? (
-                  <div className="pt-2 border-t border-slate-100 space-y-3">
-                    <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                      <TruckIcon className="w-4 h-4 text-blue-600" />
+                  <div className="pt-2 border-t border-[#ddd9d2] space-y-3">
+                    <span className="text-xs font-bold text-[#151514] flex items-center gap-1.5">
+                      <TruckIcon className="w-4 h-4 text-[#151514]" />
                       Alamat Pengiriman (Produk Fisik)
                     </span>
 
@@ -351,7 +362,7 @@ export function CartPage({
                         placeholder="Alamat lengkap (Jalan, No Rumah, RT/RW, Kecamatan)"
                         value={checkoutForm.shipping_address}
                         onChange={(e) => setCheckoutForm({ ...checkoutForm, shipping_address: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                        className="w-full bg-[#ebe9e5] border border-[#ddd9d2] rounded-xl px-3.5 py-2 text-xs text-[#151514] focus:outline-none focus:bg-[#faf9f7] focus:border-[#151514]"
                       />
                     </div>
 
@@ -363,7 +374,7 @@ export function CartPage({
                           placeholder="Kota / Kabupaten"
                           value={checkoutForm.city}
                           onChange={(e) => setCheckoutForm({ ...checkoutForm, city: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                          className="w-full bg-[#ebe9e5] border border-[#ddd9d2] rounded-xl px-3.5 py-2 text-xs text-[#151514] focus:outline-none focus:bg-[#faf9f7] focus:border-[#151514]"
                         />
                       </div>
                       <div>
@@ -373,23 +384,23 @@ export function CartPage({
                           placeholder="Kode Pos"
                           value={checkoutForm.postal_code}
                           onChange={(e) => setCheckoutForm({ ...checkoutForm, postal_code: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600"
+                          className="w-full bg-[#ebe9e5] border border-[#ddd9d2] rounded-xl px-3.5 py-2 text-xs text-[#151514] focus:outline-none focus:bg-[#faf9f7] focus:border-[#151514]"
                         />
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-xs text-purple-900">
+                  <div className="bg-[#ebe9e5] border border-[#ddd9d2] rounded-xl p-3 text-xs text-[#151514]">
                     <p className="font-bold">✓ Pesanan Hanya Produk Digital</p>
-                    <p className="text-[11px] text-purple-700 mt-0.5">
+                    <p className="text-[11px] text-[#6b665c] mt-0.5">
                       Tidak memerlukan alamat pengiriman fisik. Link unduh langsung tersedia setelah pembayaran lunas.
                     </p>
                   </div>
                 )}
 
                 {/* Metode Pembayaran */}
-                <div className="pt-2 border-t border-slate-100 space-y-2">
-                  <span className="block text-xs font-bold text-slate-900">
+                <div className="pt-2 border-t border-[#ddd9d2] space-y-2">
+                  <span className="block text-xs font-bold text-[#151514]">
                     Pilih Metode Pembayaran <span className="text-rose-500">*</span>
                   </span>
 
@@ -397,8 +408,8 @@ export function CartPage({
                     {/* Transfer Bank */}
                     <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       checkoutForm.payment_method === "manual_transfer"
-                        ? "bg-blue-50/50 border-blue-600 shadow-2xs"
-                        : "border-slate-200 hover:bg-slate-50"
+                        ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
+                        : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
                     }`}>
                       <input
                         type="radio"
@@ -406,20 +417,20 @@ export function CartPage({
                         value="manual_transfer"
                         checked={checkoutForm.payment_method === "manual_transfer"}
                         onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "manual_transfer" })}
-                        className="text-blue-600"
+                        className="accent-[#151514]"
                       />
-                      <BanknotesIcon className="w-5 h-5 text-blue-600" />
+                      <BanknotesIcon className="w-5 h-5 text-[#151514]" />
                       <div className="flex-1 text-xs">
-                        <span className="font-bold text-slate-900 block">Transfer Bank Manual</span>
-                        <span className="text-[11px] text-slate-500">BCA, Mandiri, BNI (Verifikasi penjual)</span>
+                        <span className="font-bold text-[#151514] block">Transfer Bank Manual</span>
+                        <span className="text-[11px] text-[#6b665c]">BCA, Mandiri, BNI (Verifikasi penjual)</span>
                       </div>
                     </label>
 
                     {/* QRIS */}
                     <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       checkoutForm.payment_method === "qris"
-                        ? "bg-blue-50/50 border-blue-600 shadow-2xs"
-                        : "border-slate-200 hover:bg-slate-50"
+                        ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
+                        : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
                     }`}>
                       <input
                         type="radio"
@@ -427,20 +438,20 @@ export function CartPage({
                         value="qris"
                         checked={checkoutForm.payment_method === "qris"}
                         onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "qris" })}
-                        className="text-blue-600"
+                        className="accent-[#151514]"
                       />
-                      <QrCodeIcon className="w-5 h-5 text-emerald-600" />
+                      <QrCodeIcon className="w-5 h-5 text-emerald-700" />
                       <div className="flex-1 text-xs">
-                        <span className="font-bold text-slate-900 block">QRIS (Semua E-Wallet &amp; Mobile Banking)</span>
-                        <span className="text-[11px] text-slate-500">GoPay, OVO, Dana, ShopeePay, BCA QR</span>
+                        <span className="font-bold text-[#151514] block">QRIS (Semua E-Wallet &amp; Mobile Banking)</span>
+                        <span className="text-[11px] text-[#6b665c]">GoPay, OVO, Dana, ShopeePay, BCA QR</span>
                       </div>
                     </label>
 
                     {/* Midtrans */}
                     <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       checkoutForm.payment_method === "midtrans"
-                        ? "bg-blue-50/50 border-blue-600 shadow-2xs"
-                        : "border-slate-200 hover:bg-slate-50"
+                        ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
+                        : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
                     }`}>
                       <input
                         type="radio"
@@ -448,32 +459,32 @@ export function CartPage({
                         value="midtrans"
                         checked={checkoutForm.payment_method === "midtrans"}
                         onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "midtrans" })}
-                        className="text-blue-600"
+                        className="accent-[#151514]"
                       />
-                      <CreditCardIcon className="w-5 h-5 text-indigo-600" />
+                      <CreditCardIcon className="w-5 h-5 text-[#151514]" />
                       <div className="flex-1 text-xs">
-                        <span className="font-bold text-slate-900 block">Payment Gateway (Midtrans)</span>
-                        <span className="text-[11px] text-slate-500">Kartu Kredit, Virtual Account otomatis</span>
+                        <span className="font-bold text-[#151514] block">Payment Gateway (Midtrans)</span>
+                        <span className="text-[11px] text-[#6b665c]">Kartu Kredit, Virtual Account otomatis</span>
                       </div>
                     </label>
                   </div>
                 </div>
 
                 {/* Ringkasan Biaya Final */}
-                <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs">
-                  <div className="flex justify-between text-slate-600">
+                <div className="pt-3 border-t border-[#ddd9d2] space-y-1.5 text-xs">
+                  <div className="flex justify-between text-[#6b665c]">
                     <span>Subtotal Produk</span>
-                    <span className="font-semibold text-slate-900 num-tabular">{formatIDR(cartSubtotal)}</span>
+                    <span className="font-semibold text-[#151514] num-tabular">{formatIDR(cartSubtotal)}</span>
                   </div>
-                  <div className="flex justify-between text-slate-600">
+                  <div className="flex justify-between text-[#6b665c]">
                     <span>Biaya Pengiriman</span>
-                    <span className="font-semibold text-slate-900 num-tabular">
+                    <span className="font-semibold text-[#151514] num-tabular">
                       {shippingCost > 0 ? formatIDR(shippingCost) : "Gratis"}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-100">
+                  <div className="flex justify-between text-sm font-extrabold text-[#151514] pt-2 border-t border-[#ddd9d2]">
                     <span>Total Pembayaran</span>
-                    <span className="text-blue-600 text-lg num-tabular">{formatIDR(grandTotal)}</span>
+                    <span className="text-[#151514] text-lg num-tabular">{formatIDR(grandTotal)}</span>
                   </div>
                 </div>
 
@@ -481,7 +492,7 @@ export function CartPage({
                 <button
                   type="submit"
                   disabled={checkoutLoading}
-                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 mt-4 tap-effect active:scale-[0.99]"
+                  className="w-full py-3.5 bg-[#151514] hover:bg-[#2d2a25] disabled:bg-[#7a7469] text-[#ebe9e5] font-bold text-sm rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 mt-4 tap-effect active:scale-[0.99]"
                 >
                   {checkoutLoading ? (
                     <>

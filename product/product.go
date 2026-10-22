@@ -313,11 +313,11 @@ func SetStock(ctx context.Context, id int64, p *SetStockParams) error {
 }
 
 type ProductStatsResponse struct {
-	TotalProducts     int64 `json:"total_products"`
-	OutOfStockCount   int64 `json:"out_of_stock_count"`
-	LowStockCount     int64 `json:"low_stock_count"`
-	DigitalCount      int64 `json:"digital_count"`
-	PhysicalCount     int64 `json:"physical_count"`
+	TotalProducts   int64 `json:"total_products"`
+	OutOfStockCount int64 `json:"out_of_stock_count"`
+	LowStockCount   int64 `json:"low_stock_count"`
+	DigitalCount    int64 `json:"digital_count"`
+	PhysicalCount   int64 `json:"physical_count"`
 }
 
 // Stats returns product inventory summary stats.
@@ -603,7 +603,7 @@ func UpdateStoreSettings(ctx context.Context, p *StoreSettings) (*StoreSettings,
 	configs := map[string]string{
 		"store_name":         strings.TrimSpace(p.StoreName),
 		"store_tagline":      strings.TrimSpace(p.StoreTagline),
-		"store_logo_url":      strings.TrimSpace(p.StoreLogoURL),
+		"store_logo_url":     strings.TrimSpace(p.StoreLogoURL),
 		"store_badge":        strings.TrimSpace(p.StoreBadge),
 		"store_phone":        strings.TrimSpace(p.StorePhone),
 		"store_address":      strings.TrimSpace(p.StoreAddress),
@@ -630,5 +630,3 @@ func UpdateStoreSettings(ctx context.Context, p *StoreSettings) (*StoreSettings,
 
 	return p, nil
 }
-
-

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   api,
   Product,
@@ -12,6 +13,7 @@ import { AdminCMS } from "./AdminCMS";
 import { OrdersPage } from "./OrdersPage";
 import { CartPage, CartItem } from "./CartPage";
 import { ProfilePage } from "./ProfilePage";
+import SculptureHero from "@/components/ui/liquid-sculpture-hero";
 import {
   ShoppingBagIcon,
   XMarkIcon,
@@ -359,28 +361,37 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 antialiased font-sans">
+    <div className="min-h-screen flex flex-col bg-[#ebe9e5] text-[#151514] antialiased font-sans selection:bg-[#151514] selection:text-[#ebe9e5]">
       {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-slate-700 animate-slide-up">
-          <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
-          <span>{toastMessage}</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            key="toast"
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 450, damping: 25 }}
+            className="fixed bottom-6 right-6 z-50 bg-[#151514] text-[#ebe9e5] text-xs font-semibold px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-[#2d2a25]"
+          >
+            <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Editorial Announcement Bar */}
-      <div className="bg-slate-900 text-slate-300 py-2.5 px-4 text-xs font-medium border-b border-slate-800">
+      <div className="bg-[#1c1a17] text-[#ebe9e5] py-2.5 px-4 text-xs font-medium border-b border-[#2d2a25]">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-center sm:text-left">
           <div className="flex items-center gap-2.5 mx-auto sm:mx-0">
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/80 px-2 py-0.5 rounded-full">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold text-[#ebe9e5] bg-[#2d2a25] border border-[#3e3b34] px-2 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               {storeSettings.store_badge || "RESMI"}
             </span>
-            <span className="text-slate-200">
+            <span className="text-[#ebe9e5]">
               {storeSettings.store_announcement || "Pengiriman Kilat Pulau Jawa & Akses Unduhan Instan Seluruh Aset Digital"}
             </span>
           </div>
-          <div className="hidden lg:flex items-center gap-4 text-[11px] text-slate-400 font-mono">
+          <div className="hidden lg:flex items-center gap-4 text-[11px] text-[#a8a195] font-mono">
             <span>GARANSI KEASLIAN</span>
             <span>•</span>
             <span>PEMBAYARAN OTOMATIS</span>
@@ -442,9 +453,9 @@ export default function App() {
                     navigateTo("store", "/");
                   }
                 }}
-                className="w-full bg-slate-100/80 hover:bg-slate-100 border border-slate-200/90 rounded-xl pl-10 pr-12 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all"
+                className="w-full bg-[#f5f3ef] hover:bg-white border border-[#ddd9d2] rounded-xl pl-10 pr-12 py-2.5 text-xs text-[#151514] placeholder-[#78716c] focus:outline-none focus:bg-white focus:border-[#151514] focus:ring-2 focus:ring-[#151514]/10 transition-all"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] font-semibold text-slate-400 border border-slate-200 px-1.5 py-0.5 rounded bg-white">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] font-semibold text-[#78716c] border border-[#ddd9d2] px-1.5 py-0.5 rounded bg-white">
                 /
               </span>
             </div>
@@ -457,8 +468,8 @@ export default function App() {
               onClick={() => navigateTo("store", "/")}
               className={`text-xs font-semibold px-3 py-2 rounded-xl transition-all hidden sm:flex items-center gap-1.5 ${
                 viewMode === "store"
-                  ? "bg-slate-100 text-slate-900 font-bold"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  ? "bg-[#151514] text-[#ebe9e5] font-bold"
+                  : "text-[#57534e] hover:text-[#151514] hover:bg-[#f5f3ef]"
               }`}
             >
               <ShoppingBagIcon className="w-4 h-4" />
@@ -470,11 +481,11 @@ export default function App() {
               onClick={() => navigateTo("orders", "/orders")}
               className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all flex items-center gap-1.5 ${
                 viewMode === "orders"
-                  ? "bg-blue-50 text-blue-700 border-blue-300 font-bold"
-                  : "text-slate-700 hover:text-slate-900 border-slate-200 hover:bg-slate-100"
+                  ? "bg-[#151514] text-[#ebe9e5] border-[#151514] font-bold"
+                  : "text-[#57534e] hover:text-[#151514] border-[#ddd9d2] hover:bg-[#f5f3ef]"
               }`}
             >
-              <TruckIcon className="w-4 h-4 text-blue-600" />
+              <TruckIcon className="w-4 h-4 text-[#151514]" />
               <span className="hidden sm:inline">Riwayat Pesanan</span>
             </button>
 
@@ -485,8 +496,8 @@ export default function App() {
                 aria-label={`Notifikasi pesanan (${unreadNotificationsCount} belum dibaca)`}
                 className={`relative p-2 rounded-xl border transition-all flex items-center justify-center ${
                   isNotificationsOpen
-                    ? "bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-100"
-                    : "text-slate-700 hover:text-slate-900 border-slate-200 hover:bg-slate-100"
+                    ? "bg-[#151514] text-[#ebe9e5] border-[#151514] ring-2 ring-[#78716c]/20"
+                    : "text-[#57534e] hover:text-[#151514] border-[#ddd9d2] hover:bg-[#f5f3ef]"
                 }`}
               >
                 <BellIcon className="w-4 h-4 text-slate-600" />
@@ -498,8 +509,16 @@ export default function App() {
               </button>
 
               {/* Notification Dropdown Popover */}
-              {isNotificationsOpen && (
-                <div className="absolute right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+              <AnimatePresence>
+                {isNotificationsOpen && (
+                  <motion.div
+                    key="notif-dropdown"
+                    initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="absolute right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden"
+                  >
                   <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-xs text-slate-800">Notifikasi Pesanan</span>
@@ -580,8 +599,9 @@ export default function App() {
                       Buka Riwayat Pesanan &rarr;
                     </button>
                   </div>
-                </div>
+                </motion.div>
               )}
+            </AnimatePresence>
             </div>
 
             {/* Profil / Akun Pengguna */}
@@ -589,11 +609,11 @@ export default function App() {
               onClick={() => navigateTo("profile", "/profile")}
               className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all flex items-center gap-1.5 ${
                 viewMode === "profile"
-                  ? "bg-blue-50 text-blue-700 border-blue-300 font-bold"
-                  : "text-slate-700 hover:text-slate-900 border-slate-200 hover:bg-slate-100"
+                  ? "bg-[#151514] text-[#ebe9e5] border-[#151514] font-bold"
+                  : "text-[#57534e] hover:text-[#151514] border-[#ddd9d2] hover:bg-[#f5f3ef]"
               }`}
             >
-              <UserIcon className="w-4 h-4 text-slate-600" />
+              <UserIcon className="w-4 h-4 text-[#151514]" />
               <span className="hidden sm:inline">
                 {currentUser ? currentUser.name.split(" ")[0] : "Akun"}
               </span>
@@ -603,7 +623,7 @@ export default function App() {
             {currentUser?.role === "admin" && (
               <button
                 onClick={() => navigateTo("cms", "/cms")}
-                className="text-xs font-bold px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all flex items-center gap-1 shadow-2xs"
+                className="text-xs font-bold px-3 py-2 rounded-xl bg-[#151514] text-[#ebe9e5] border border-[#2d2a25] hover:bg-[#292524] transition-all flex items-center gap-1 shadow-2xs"
               >
                 <span>Admin CMS</span>
               </button>
@@ -615,15 +635,21 @@ export default function App() {
               aria-label={`Buka keranjang belanja (${totalCartCount} item)`}
               className={`relative p-2.5 rounded-xl transition-all shadow-xs ${
                 viewMode === "cart"
-                  ? "bg-blue-700 text-white ring-2 ring-blue-400"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
+                  ? "bg-[#151514] text-[#ebe9e5] ring-2 ring-[#78716c]"
+                  : "bg-[#151514] hover:bg-[#292524] text-[#ebe9e5]"
               }`}
             >
               <ShoppingBagIcon className="w-5 h-5" />
               {totalCartCount > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-white">
+                <motion.span
+                  key={totalCartCount}
+                  initial={{ scale: 0.5 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                  className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-white"
+                >
                   {totalCartCount}
-                </span>
+                </motion.span>
               )}
             </button>
           </nav>
@@ -652,7 +678,16 @@ export default function App() {
       </header>
 
       {/* ================= BODY CONTENT ROUTING ================= */}
-      {viewMode === "orders" ? (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={viewMode}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="flex-1 flex flex-col"
+        >
+          {viewMode === "orders" ? (
         /* Dedicated Orders & Tracking Page */
         <main className="flex-1">
           <OrdersPage
@@ -698,69 +733,52 @@ export default function App() {
       ) : (
         /* Dedicated Storefront Catalog Page */
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-          {/* Editorial Hero Banner (Taste-Skill Studio Showcase) */}
-          <section className="relative rounded-3xl overflow-hidden mb-12 border border-slate-200/90 bg-gradient-to-br from-white via-slate-50 to-blue-50/30 shadow-xs">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 p-8 sm:p-12 items-center relative z-10">
-              <div className="lg:col-span-7">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 text-slate-100 text-[11px] font-mono tracking-wider mb-5 shadow-xs">
-                  <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-                  <span>EST. 2026 • HARDWARE &amp; DIGITAL ATELIER</span>
-                </div>
-                <h1 className="font-heading text-3xl sm:text-5xl font-black text-slate-900 leading-[1.1] mb-5 tracking-tight">
-                  Peralatan Setup Meja Kerja <span className="text-blue-600">&amp; Aset Digital.</span>
-                </h1>
-                <p className="text-slate-600 text-sm sm:text-base leading-relaxed mb-8 max-w-xl">
-                  Tingkatkan kenyamanan &amp; estetika ruang kerja Anda dengan kurasi hardware fisik minimalis dan koleksi aset digital siap unduh berkualitas tinggi.
-                </p>
+          {/* Liquid Sculpture Hero (dev21st Interactive GPU Particle Showcase) */}
+          <div className="mb-10">
+            <SculptureHero
+              brand={storeSettings.store_name || "SUPATMAN STORE"}
+              eyebrow="EST. 2026 • HARDWARE & DIGITAL ATELIER"
+              headline={"Form that\nanswers back."}
+              headlineAccent={"answers back."}
+              body="Kurasi perlengkapan meja kerja berdesain minimalis dan koleksi aset digital berkualitas tinggi. Sentuh dan gerakkan kursor pada form liquid material untuk merasakan interaksi GPU real-time."
+              primaryCta={{ label: "Jelajahi Katalog ↓", href: "#katalog" }}
+              secondaryCta={{ label: "Lacak Pesanan →", href: "#/orders" }}
+              showNav={false}
+              height="580px"
+              className="rounded-3xl border border-[#ddd9d2] shadow-sm overflow-hidden"
+              backdropText="supatman"
+              background="#ebe9e5"
+              darkBackground="#111110"
+              textColor="#151514"
+              accentColor="#151514"
+            />
 
-                {/* 3 Keunggulan Atelier */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-slate-200/80">
-                  <div className="flex items-center gap-2.5 text-xs text-slate-700 font-semibold">
-                    <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 border border-blue-100">
-                      <TruckIcon className="w-4 h-4" />
-                    </div>
-                    <span>Ekspedisi Kilat &amp; Resi</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 text-xs text-slate-700 font-semibold">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0 border border-indigo-100">
-                      <ArrowDownTrayIcon className="w-4 h-4" />
-                    </div>
-                    <span>Akses Unduh Instan</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 text-xs text-slate-700 font-semibold">
-                    <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 border border-emerald-100">
-                      <ShieldCheckIcon className="w-4 h-4" />
-                    </div>
-                    <span>Verifikasi Lunas Realtime</span>
-                  </div>
+            {/* 3 Keunggulan Atelier Badges */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 mt-6 border-t border-[#ddd9d2]">
+              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-[#f5f3ef] border border-[#ddd9d2] shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-[#ebe9e5] text-[#151514] flex items-center justify-center flex-shrink-0 border border-[#ddd9d2]">
+                  <TruckIcon className="w-4 h-4" />
                 </div>
+                <span>Ekspedisi Kilat &amp; Resi</span>
               </div>
-
-              {/* Asymmetrical Showcase Card */}
-              <div className="lg:col-span-5 hidden lg:block">
-                <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200/90 aspect-[4/3] bg-slate-900 group">
-                  <img
-                    src="https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=800&q=80"
-                    alt="Minimal Workspace Setup"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-90"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex flex-col justify-end p-6">
-                    <span className="font-mono text-[10px] text-blue-300 tracking-widest uppercase mb-1">
-                      INSPIRASI SETUP MINIMALIS
-                    </span>
-                    <h3 className="font-heading text-white font-bold text-base leading-snug">
-                      Hardware Setup Ergonomis &amp; Terorganisir
-                    </h3>
-                  </div>
+              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-[#f5f3ef] border border-[#ddd9d2] shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-[#ebe9e5] text-[#151514] flex items-center justify-center flex-shrink-0 border border-[#ddd9d2]">
+                  <ArrowDownTrayIcon className="w-4 h-4" />
                 </div>
+                <span>Akses Unduh Instan</span>
+              </div>
+              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-[#f5f3ef] border border-[#ddd9d2] shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-[#ebe9e5] text-[#151514] flex items-center justify-center flex-shrink-0 border border-[#ddd9d2]">
+                  <ShieldCheckIcon className="w-4 h-4" />
+                </div>
+                <span>Verifikasi Lunas Realtime</span>
               </div>
             </div>
-          </section>
+          </div>
 
           {/* Filter Bar (Segmented Control & Tags) */}
-          <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" aria-label="Filter kategori">
-            <div className="inline-flex p-1 bg-slate-200/70 rounded-2xl border border-slate-200/80">
+          <section id="katalog" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" aria-label="Filter kategori">
+            <div className="inline-flex p-1 bg-[#ddd9d2]/60 rounded-2xl border border-[#ddd9d2]">
               <button
                 onClick={() => {
                   setDigitalFilter("");
@@ -768,8 +786,8 @@ export default function App() {
                 }}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect ${
                   digitalFilter === "" && selectedCategory === ""
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white text-[#151514] shadow-xs"
+                    : "text-[#57534e] hover:text-[#151514]"
                 }`}
               >
                 Semua Koleksi
@@ -778,22 +796,22 @@ export default function App() {
                 onClick={() => setDigitalFilter("false")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 tap-effect ${
                   digitalFilter === "false"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white text-[#151514] shadow-xs"
+                    : "text-[#57534e] hover:text-[#151514]"
                 }`}
               >
-                <CubeIcon className="w-4 h-4 text-blue-600" />
+                <CubeIcon className="w-4 h-4 text-[#151514]" />
                 <span>Barang Fisik</span>
               </button>
               <button
                 onClick={() => setDigitalFilter("true")}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 tap-effect ${
                   digitalFilter === "true"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white text-[#151514] shadow-xs"
+                    : "text-[#57534e] hover:text-[#151514]"
                 }`}
               >
-                <DocumentArrowDownIcon className="w-4 h-4 text-indigo-600" />
+                <DocumentArrowDownIcon className="w-4 h-4 text-[#151514]" />
                 <span>Aset Digital</span>
               </button>
             </div>
@@ -806,8 +824,8 @@ export default function App() {
                   onClick={() => setSelectedCategory(selectedCategory === c.slug ? "" : c.slug)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all tap-effect ${
                     selectedCategory === c.slug
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "bg-white text-slate-600 hover:text-slate-900 border border-slate-200/90 hover:bg-slate-50"
+                      ? "bg-[#151514] text-[#ebe9e5] shadow-xs"
+                      : "bg-[#f5f3ef] text-[#57534e] hover:text-[#151514] border border-[#ddd9d2] hover:bg-white"
                   }`}
                 >
                   {c.name}
@@ -841,8 +859,13 @@ export default function App() {
           ) : (
             <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {products.map((product) => (
-                <div
+                <motion.div
                   key={product.id}
+                  layout
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25 }}
+                  whileHover={{ y: -4 }}
                   className="group surface-card rounded-2xl overflow-hidden flex flex-col justify-between"
                 >
                   {/* Image Container with Inner Vignette & Tag */}
@@ -915,7 +938,7 @@ export default function App() {
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => addToCart(product, 1, false)}
-                          className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 transition-all border border-slate-200/80 tap-effect"
+                          className="w-full py-2.5 px-3 rounded-xl bg-[#f5f3ef] hover:bg-[#e8e5df] text-xs font-semibold text-[#151514] transition-all border border-[#ddd9d2] tap-effect"
                         >
                           + Keranjang
                         </button>
@@ -924,199 +947,219 @@ export default function App() {
                             addToCart(product, 1, false);
                             navigateTo("cart", "/cart");
                           }}
-                          className="w-full py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-xs transition-all tap-effect"
+                          className="w-full py-2.5 px-3 rounded-xl bg-[#151514] hover:bg-[#2d2a25] text-xs font-bold text-[#ebe9e5] shadow-xs transition-all tap-effect"
                         >
                           Beli Langsung
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
             </section>
           )}
         </main>
       )}
+        </motion.div>
+      </AnimatePresence>
 
       {/* Product Detail Quick View Modal */}
-      {detailProduct && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm overflow-y-auto"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Detail produk ${detailProduct.name}`}
-        >
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8">
-            <button
+      <AnimatePresence>
+        {detailProduct && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Detail produk ${detailProduct.name}`}
+          >
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               onClick={() => setDetailProduct(null)}
-              aria-label="Tutup detail produk"
-              className="absolute top-6 right-6 p-1.5 rounded-full text-slate-400 hover:text-slate-800 hover:bg-slate-100"
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: "spring", stiffness: 380, damping: 26 }}
+              className="bg-[#f5f3ef] border border-[#ddd9d2] rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 z-10 text-[#151514]"
             >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
+              <button
+                onClick={() => setDetailProduct(null)}
+                aria-label="Tutup detail produk"
+                className="absolute top-6 right-6 p-1.5 rounded-full text-[#7a7469] hover:text-[#151514] hover:bg-[#ddd9d2]/50 transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
-              {/* Image Preview */}
-              <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 aspect-square">
-                <img
-                  src={detailProduct.image_url || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=600&q=80"}
-                  alt={detailProduct.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* Product Info */}
-              <div className="flex flex-col justify-between h-full space-y-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        detailProduct.is_digital
-                          ? "bg-purple-100 text-purple-700"
-                          : "bg-emerald-100 text-emerald-700"
-                      }`}
-                    >
-                      {detailProduct.is_digital ? "Produk Digital" : "Barang Fisik"}
-                    </span>
-                    {detailProduct.category_name && (
-                      <span className="text-xs text-slate-500 font-medium">
-                        • {detailProduct.category_name}
-                      </span>
-                    )}
-                  </div>
-
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 leading-snug">
-                    {detailProduct.name}
-                  </h2>
-
-                  <div className="my-3">
-                    <span className="text-2xl font-black text-blue-600 num-tabular">
-                      {formatIDR(detailProduct.price)}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-slate-600 leading-relaxed max-h-40 overflow-y-auto">
-                    {detailProduct.description || "Tidak ada deskripsi detail untuk produk ini."}
-                  </p>
-
-                  <div className="pt-3 border-t border-slate-100 text-xs text-slate-500 space-y-1">
-                    <div>
-                      Tipe Pengiriman:{" "}
-                      <span className="font-semibold text-slate-800">
-                        {detailProduct.is_digital ? "Download Instan" : "Ekspedisi / Kurir"}
-                      </span>
-                    </div>
-                    <div>
-                      Ketersediaan:{" "}
-                      <span className="font-semibold text-slate-800">
-                        {detailProduct.is_digital ? "Selalu Tersedia" : `Stok ${detailProduct.stock} unit`}
-                      </span>
-                    </div>
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+                {/* Image Preview */}
+                <div className="rounded-2xl overflow-hidden border border-[#ddd9d2] bg-[#ebe9e5] aspect-square">
+                  <img
+                    src={detailProduct.image_url || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=600&q=80"}
+                    alt={detailProduct.name}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
 
-                {/* Actions */}
-                <div className="space-y-3 pt-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-semibold text-slate-600">Jumlah:</span>
-                    <div className="flex items-center border border-slate-300 rounded-xl bg-slate-50">
-                      <button
-                        onClick={() => setDetailQuantity(Math.max(1, detailQuantity - 1))}
-                        aria-label="Kurangi jumlah detail"
-                        className="p-2 text-slate-600 hover:text-slate-900"
+                {/* Product Info */}
+                <div className="flex flex-col justify-between h-full space-y-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          detailProduct.is_digital
+                            ? "bg-[#2d2a25] text-[#ebe9e5]"
+                            : "bg-[#ddd9d2] text-[#151514]"
+                        }`}
                       >
-                        <MinusIcon className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-xs font-bold px-3 num-tabular">{detailQuantity}</span>
-                      <button
-                        onClick={() => setDetailQuantity(detailQuantity + 1)}
-                        aria-label="Tambah jumlah detail"
-                        className="p-2 text-slate-600 hover:text-slate-900"
-                      >
-                        <PlusIcon className="w-3.5 h-3.5" />
-                      </button>
+                        {detailProduct.is_digital ? "Produk Digital" : "Barang Fisik"}
+                      </span>
+                      {detailProduct.category_name && (
+                        <span className="text-xs text-[#7a7469] font-medium">
+                          • {detailProduct.category_name}
+                        </span>
+                      )}
+                    </div>
+
+                    <h2 className="text-xl sm:text-2xl font-bold text-[#151514] leading-snug">
+                      {detailProduct.name}
+                    </h2>
+
+                    <div className="my-3">
+                      <span className="text-2xl font-black text-[#151514] num-tabular">
+                        {formatIDR(detailProduct.price)}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-[#524d45] leading-relaxed max-h-40 overflow-y-auto">
+                      {detailProduct.description || "Tidak ada deskripsi detail untuk produk ini."}
+                    </p>
+
+                    <div className="pt-3 border-t border-[#ddd9d2] text-xs text-[#6b665c] space-y-1">
+                      <div>
+                        Tipe Pengiriman:{" "}
+                        <span className="font-semibold text-[#151514]">
+                          {detailProduct.is_digital ? "Download Instan" : "Ekspedisi / Kurir"}
+                        </span>
+                      </div>
+                      <div>
+                        Ketersediaan:{" "}
+                        <span className="font-semibold text-[#151514]">
+                          {detailProduct.is_digital ? "Selalu Tersedia" : `Stok ${detailProduct.stock} unit`}
+                        </span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Actions */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-[#6b665c]">Jumlah:</span>
+                      <div className="flex items-center border border-[#ddd9d2] rounded-xl bg-[#ebe9e5]">
+                        <button
+                          onClick={() => setDetailQuantity(Math.max(1, detailQuantity - 1))}
+                          aria-label="Kurangi jumlah detail"
+                          className="p-2 text-[#524d45] hover:text-[#151514]"
+                        >
+                          <MinusIcon className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-xs font-bold px-3 num-tabular text-[#151514]">{detailQuantity}</span>
+                        <button
+                          onClick={() => setDetailQuantity(detailQuantity + 1)}
+                          aria-label="Tambah jumlah detail"
+                          className="p-2 text-[#524d45] hover:text-[#151514]"
+                        >
+                          <PlusIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-2">
-                    <button
-                      onClick={() => {
-                        addToCart(detailProduct, detailQuantity, false);
-                        setDetailProduct(null);
-                      }}
-                      className="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-800 border border-slate-200/90 transition-all tap-effect"
-                    >
-                      + Ke Keranjang
-                    </button>
-                    <button
-                      onClick={() => {
-                        addToCart(detailProduct, detailQuantity, false);
-                        setDetailProduct(null);
-                        navigateTo("cart", "/cart");
-                      }}
-                      className="py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-xs font-bold text-white shadow-xs transition-all tap-effect"
-                    >
-                      Beli Sekarang
-                    </button>
+                      <button
+                        onClick={() => {
+                          addToCart(detailProduct, detailQuantity, false);
+                          setDetailProduct(null);
+                        }}
+                        className="py-3 px-4 rounded-xl bg-[#ebe9e5] hover:bg-[#ddd9d2] text-xs font-bold text-[#151514] border border-[#ddd9d2] transition-all tap-effect"
+                      >
+                        + Ke Keranjang
+                      </button>
+                      <button
+                        onClick={() => {
+                          addToCart(detailProduct, detailQuantity, false);
+                          setDetailProduct(null);
+                          navigateTo("cart", "/cart");
+                        }}
+                        className="py-3 px-4 rounded-xl bg-[#151514] hover:bg-[#2d2a25] text-xs font-bold text-[#ebe9e5] shadow-xs transition-all tap-effect"
+                      >
+                        Beli Sekarang
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Editorial Atelier Footer */}
-      <footer className="border-t border-slate-200/80 bg-white mt-20 pt-16 pb-12">
+      <footer className="border-t border-[#ddd9d2] bg-[#f5f3ef] mt-20 pt-16 pb-12 text-[#151514]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-slate-100">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-[#ddd9d2]">
             <div className="md:col-span-6">
               <div className="flex items-center gap-2.5 mb-3">
                 {storeSettings.store_logo_url ? (
                   <img
                     src={storeSettings.store_logo_url}
                     alt={storeSettings.store_name}
-                    className="w-8 h-8 rounded-xl object-contain border border-slate-200 p-0.5 bg-white"
+                    className="w-8 h-8 rounded-xl object-contain border border-[#ddd9d2] p-0.5 bg-[#ebe9e5]"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-[#151514] text-[#ebe9e5] flex items-center justify-center font-bold">
                     <CubeIcon className="w-4 h-4" />
                   </div>
                 )}
-                <span className="font-heading font-black text-base text-slate-900 tracking-tight">
+                <span className="font-heading font-black text-base text-[#151514] tracking-tight">
                   {storeSettings.store_name || "SUPATMAN STORE"}
                 </span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#ddd9d2] text-[#151514]">
                   {storeSettings.store_badge || "ATELIER"}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 leading-relaxed max-w-md mb-3">
+              <p className="text-xs text-[#524d45] leading-relaxed max-w-md mb-3">
                 {storeSettings.store_tagline || "Kurasi perlengkapan meja kerja berdesain minimalis dan koleksi aset digital berkualitas tinggi. Dirancang untuk developer, kreator, dan profesional modern."}
               </p>
               {storeSettings.store_address && (
-                <p className="text-[11px] text-slate-400 font-mono">
+                <p className="text-[11px] text-[#7a7469] font-mono">
                   📍 {storeSettings.store_address}
                 </p>
               )}
             </div>
 
             <div className="md:col-span-3">
-              <h4 className="font-mono text-[11px] font-bold text-slate-900 uppercase tracking-wider mb-3">
+              <h4 className="font-mono text-[11px] font-bold text-[#151514] uppercase tracking-wider mb-3">
                 Navigasi Cepat
               </h4>
-              <ul className="space-y-2 text-xs text-slate-600">
+              <ul className="space-y-2 text-xs text-[#524d45]">
                 <li>
-                  <button onClick={() => navigateTo("store", "/")} className="hover:text-blue-600 transition-colors">
+                  <button onClick={() => navigateTo("store", "/")} className="hover:text-[#151514] font-medium transition-colors">
                     Katalog Produk
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => navigateTo("orders", "/orders")} className="hover:text-blue-600 transition-colors">
+                  <button onClick={() => navigateTo("orders", "/orders")} className="hover:text-[#151514] font-medium transition-colors">
                     Pelacakan &amp; Resi Pesanan
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => navigateTo("cart", "/cart")} className="hover:text-blue-600 transition-colors">
+                  <button onClick={() => navigateTo("cart", "/cart")} className="hover:text-[#151514] font-medium transition-colors">
                     Keranjang Belanja
                   </button>
                 </li>
@@ -1124,27 +1167,27 @@ export default function App() {
             </div>
 
             <div className="md:col-span-3">
-              <h4 className="font-mono text-[11px] font-bold text-slate-900 uppercase tracking-wider mb-3">
+              <h4 className="font-mono text-[11px] font-bold text-[#151514] uppercase tracking-wider mb-3">
                 Hubungi Kami
               </h4>
-              <div className="space-y-2 text-xs text-slate-500">
+              <div className="space-y-2 text-xs text-[#524d45]">
                 {storeSettings.store_phone && (
-                  <p className="text-xs font-mono font-semibold text-slate-700">
+                  <p className="text-xs font-mono font-semibold text-[#151514]">
                     WA/Telp: {storeSettings.store_phone}
                   </p>
                 )}
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-700">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#ebe9e5] border border-[#ddd9d2] text-[11px] font-mono text-[#151514]">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   <span>ENCORE CLOUD MICROSERVICES</span>
                 </div>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-[#7a7469]">
                   Didukung enkripsi TLS &amp; validasi pembayaran otomatis.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 font-mono">
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#7a7469] font-mono">
             <p>© {new Date().getFullYear()} {storeSettings.store_name || "Supatman Store"}. All Rights Reserved.</p>
             <p className="text-[11px]">Crafted with Go (Encore.dev) &amp; React 18 + Tailwind CSS</p>
           </div>

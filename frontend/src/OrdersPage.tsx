@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   api,
   Order,
@@ -947,77 +948,108 @@ export function OrdersPage({
       )}
 
       {/* ================= MODAL: SHARE INVOICE ================= */}
-      {showShareModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-scale-up space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <ShareIcon className="w-4 h-4" />
+      <AnimatePresence>
+        {showShareModal && selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setShowShareModal(false)}
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: "spring", stiffness: 380, damping: 26 }}
+              className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 relative z-10"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <ShareIcon className="w-4 h-4" />
+                  </div>
+                  <h3 className="font-extrabold text-slate-900 text-sm">Bagikan Invoice Pesanan</h3>
                 </div>
-                <h3 className="font-extrabold text-slate-900 text-sm">Bagikan Invoice Pesanan</h3>
+                <button
+                  onClick={() => setShowShareModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => setShowShareModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              >
-                <XMarkIcon className="w-5 h-5" />
-              </button>
-            </div>
 
-            <p className="text-xs text-slate-500">
-              Bagikan detail atau bukti pesanan <strong>#ORDER-{selectedOrder.id}</strong> kepada konsumen atau kolega:
-            </p>
+              <p className="text-xs text-slate-500">
+                Bagikan detail atau bukti pesanan <strong>#ORDER-{selectedOrder.id}</strong> kepada konsumen atau kolega:
+              </p>
 
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-[11px] text-slate-600 space-y-1">
-              <div><strong>Pesanan:</strong> #ORDER-{selectedOrder.id}</div>
-              <div><strong>Toko:</strong> {storeSettings?.store_name || "SUPATMAN STORE"}</div>
-              <div><strong>Pelanggan:</strong> {selectedOrder.customer_name}</div>
-              <div><strong>Total:</strong> {formatIDR(selectedOrder.total_amount)}</div>
-              <div><strong>Status:</strong> {selectedOrder.status.toUpperCase()}</div>
-            </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-[11px] text-slate-600 space-y-1">
+                <div><strong>Pesanan:</strong> #ORDER-{selectedOrder.id}</div>
+                <div><strong>Toko:</strong> {storeSettings?.store_name || "SUPATMAN STORE"}</div>
+                <div><strong>Pelanggan:</strong> {selectedOrder.customer_name}</div>
+                <div><strong>Total:</strong> {formatIDR(selectedOrder.total_amount)}</div>
+                <div><strong>Status:</strong> {selectedOrder.status.toUpperCase()}</div>
+              </div>
 
-            <div className="space-y-2 pt-2">
-              <button
-                onClick={() => {
-                  handleShareWhatsapp(selectedOrder);
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all"
-              >
-                <span>💬 Bagikan via WhatsApp</span>
-              </button>
+              <div className="space-y-2 pt-2">
+                <button
+                  onClick={() => {
+                    handleShareWhatsapp(selectedOrder);
+                    setShowShareModal(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all"
+                >
+                  <span>💬 Bagikan via WhatsApp</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  handleCopyInvoiceLink(selectedOrder);
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all"
-              >
-                <DocumentDuplicateIcon className="w-4 h-4 text-slate-500" />
-                <span>Salin Tautan Invoice</span>
-              </button>
+                <button
+                  onClick={() => {
+                    handleCopyInvoiceLink(selectedOrder);
+                    setShowShareModal(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-all"
+                >
+                  <DocumentDuplicateIcon className="w-4 h-4 text-slate-500" />
+                  <span>Salin Tautan Invoice</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  setShowShareModal(false);
-                  setShowInvoiceModal(true);
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs transition-all"
-              >
-                <PrinterIcon className="w-4 h-4 text-blue-600" />
-                <span>Buka &amp; Cetak Faktur Resmi</span>
-              </button>
-            </div>
+                <button
+                  onClick={() => {
+                    setShowShareModal(false);
+                    setShowInvoiceModal(true);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs transition-all"
+                >
+                  <PrinterIcon className="w-4 h-4 text-blue-600" />
+                  <span>Buka &amp; Cetak Faktur Resmi</span>
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* ================= MODAL: CETAK / LIHAT INVOICE RESMI ================= */}
-      {showInvoiceModal && selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto animate-scale-up">
+      <AnimatePresence>
+        {showInvoiceModal && selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setShowInvoiceModal(false)}
+              className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ type: "spring", stiffness: 380, damping: 26 }}
+              className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto relative z-10"
+            >
             {/* Top Toolbar (No-Print) */}
             <div className="no-print bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800">
               <div className="flex items-center gap-2">
@@ -1257,9 +1289,10 @@ export function OrdersPage({
                 <span>Cetak Faktur</span>
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+    </AnimatePresence>
     </div>
   );
 }
