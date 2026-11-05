@@ -92,6 +92,15 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
 
+  // Duitku Payment Gateway Settings State
+  const [duitkuMerchantCode, setDuitkuMerchantCode] = useState("");
+  const [duitkuApiKey, setDuitkuApiKey] = useState("");
+  const [hasDuitkuApiKey, setHasDuitkuApiKey] = useState(false);
+  const [duitkuSandbox, setDuitkuSandbox] = useState(true);
+  const [duitkuEnabled, setDuitkuEnabled] = useState(true);
+  const [duitkuExpiryPeriod, setDuitkuExpiryPeriod] = useState(1440);
+  const [savingDuitkuSettings, setSavingDuitkuSettings] = useState(false);
+
   // Store Profile & Branding Settings State
   const [storeName, setStoreName] = useState("SUPATMAN STORE");
   const [storeTagline, setStoreTagline] = useState("Hardware Setup & Digital Atelier");
@@ -168,6 +177,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       fetchStoreSettings();
       fetchAuthSettings();
       fetchEmailSettings();
+      fetchDuitkuSettings();
     }
   }, [activeTab, isAdminLoggedIn]);
 
@@ -278,6 +288,46 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       showNotification(err.message || "Gagal menyimpan pengaturan", true);
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const fetchDuitkuSettings = async () => {
+    try {
+      const s = await api.getDuitkuSettings();
+      setDuitkuMerchantCode(s.merchant_code || "");
+      setHasDuitkuApiKey(s.has_api_key || false);
+      setDuitkuSandbox(s.sandbox ?? true);
+      setDuitkuEnabled(s.enabled ?? true);
+      setDuitkuExpiryPeriod(s.expiry_period || 1440);
+    } catch (err: any) {
+      console.error("Gagal memuat pengaturan Duitku:", err);
+    }
+  };
+
+  const handleSaveDuitkuSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDuitkuSettings(true);
+    try {
+      const res = await api.updateDuitkuSettings({
+        merchant_code: duitkuMerchantCode,
+        api_key: duitkuApiKey || undefined,
+        sandbox: duitkuSandbox,
+        enabled: duitkuEnabled,
+        expiry_period: Number(duitkuExpiryPeriod) || 1440,
+      });
+      showNotification("Pengaturan Duitku Payment Gateway berhasil disimpan!");
+      if (res.merchant_code) {
+        setDuitkuMerchantCode(res.merchant_code);
+      }
+      setDuitkuApiKey("");
+      setHasDuitkuApiKey(res.has_api_key ?? (hasDuitkuApiKey || !!duitkuApiKey));
+      setDuitkuSandbox(res.sandbox ?? duitkuSandbox);
+      setDuitkuEnabled(res.enabled ?? duitkuEnabled);
+      setDuitkuExpiryPeriod(res.expiry_period || 1440);
+    } catch (err: any) {
+      showNotification(err.message || "Gagal menyimpan pengaturan Duitku", true);
+    } finally {
+      setSavingDuitkuSettings(false);
     }
   };
 
@@ -1916,6 +1966,158 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                     className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
                   >
                     {savingSettings ? "Menyimpan..." : "Simpan Pengaturan Google"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Section: Duitku Payment Gateway Configuration */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg shadow-xs">
+                  💳
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Pengaturan Duitku Payment Gateway (POP)</h2>
+                  <p className="text-xs text-slate-500">Konfigurasi Merchant Code &amp; API Key Duitku untuk pembayaran instan (VA Bank, QRIS, E-Wallet, Kartu Kredit)</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveDuitkuSettings} className="space-y-5 text-xs">
+                {/* Toggle Enable Duitku */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">Status Pembayaran Duitku</div>
+                    <div className="text-slate-500 mt-0.5">Tampilkan dan aktifkan opsi checkout Payment Gateway (Duitku) pada halaman keranjang</div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={duitkuEnabled}
+                      onChange={(e) => setDuitkuEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {/* Mode: Sandbox vs Production */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">Environment Mode</div>
+                    <div className="text-slate-500 mt-0.5">
+                      {duitkuSandbox ? "Mode Sandbox (Pengujian / Simulasi)" : "Mode Production (Live Payment)"}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDuitkuSandbox(true)}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-xs transition ${
+                        duitkuSandbox ? "bg-amber-100 text-amber-800 border border-amber-300" : "bg-white text-slate-500 border border-slate-200"
+                      }`}
+                    >
+                      Sandbox
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDuitkuSandbox(false)}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-xs transition ${
+                        !duitkuSandbox ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-white text-slate-500 border border-slate-200"
+                      }`}
+                    >
+                      Production
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Merchant Code */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Duitku Merchant Code *
+                    </label>
+                    <input
+                      type="text"
+                      value={duitkuMerchantCode}
+                      onChange={(e) => setDuitkuMerchantCode(e.target.value)}
+                      placeholder="Contoh: D1234 atau D9876"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Didapatkan dari menu Project / My Merchant di Dashboard Duitku.
+                    </p>
+                  </div>
+
+                  {/* API Key / Project Key */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Duitku API Key (Project Key) {hasDuitkuApiKey && <span className="text-emerald-600 font-bold lowercase">(tersimpan)</span>}
+                    </label>
+                    <input
+                      type="password"
+                      value={duitkuApiKey}
+                      onChange={(e) => setDuitkuApiKey(e.target.value)}
+                      placeholder={hasDuitkuApiKey ? "••••••••••••••••••••••••••••••••" : "Masukkan API Key dari dashboard Duitku"}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Kunci rahasia API untuk enkripsi signature request &amp; callback.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Expiry Period */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Masa Berlaku Invoice (Menit)
+                  </label>
+                  <input
+                    type="number"
+                    value={duitkuExpiryPeriod}
+                    onChange={(e) => setDuitkuExpiryPeriod(Number(e.target.value))}
+                    placeholder="1440 (24 jam)"
+                    className="w-full sm:w-64 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Batas waktu pembayaran untuk invoice POP sebelum otomatis dibatalkan (default: 1440 menit = 24 jam).
+                  </p>
+                </div>
+
+                {/* Callback & Return URL info */}
+                <div className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-xl space-y-2 text-slate-700">
+                  <div className="font-bold text-indigo-900 flex items-center gap-1.5">
+                    <span>💡</span> Panduan Konfigurasi Duitku POP:
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-slate-600 pl-1">
+                    <li>Buka dashboard Duitku di <a href="https://passport.duitku.com" target="_blank" rel="noreferrer" className="text-indigo-600 font-semibold underline">passport.duitku.com</a> (atau sandbox).</li>
+                    <li>Buka menu <strong>My Merchant</strong> &gt; pilih Project Anda.</li>
+                    <li>Salin <strong>Merchant Code</strong> dan <strong>API Key</strong> ke form di atas.</li>
+                    <li>Pada kolom <strong>Callback URL</strong> di dashboard Duitku, masukkan:
+                      <div className="mt-1 flex items-center gap-2">
+                        <code className="block font-mono bg-white px-2 py-1 rounded border border-indigo-200 text-indigo-900 select-all">
+                          {window.location.origin}/payment/duitku/callback
+                        </code>
+                      </div>
+                    </li>
+                    <li>Pada kolom <strong>Return URL</strong> di dashboard Duitku, masukkan:
+                      <div className="mt-1">
+                        <code className="block font-mono bg-white px-2 py-1 rounded border border-indigo-200 text-indigo-900 select-all">
+                          {window.location.origin}/orders
+                        </code>
+                      </div>
+                    </li>
+                    <li>Klik <strong>Simpan Pengaturan Duitku</strong> di bawah.</li>
+                  </ol>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingDuitkuSettings}
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
+                  >
+                    {savingDuitkuSettings ? "Menyimpan..." : "Simpan Pengaturan Duitku"}
                   </button>
                 </div>
               </form>

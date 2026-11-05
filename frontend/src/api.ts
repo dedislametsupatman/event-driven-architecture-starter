@@ -54,7 +54,7 @@ export interface Order {
   shipping_cost: number;
   grand_total: number;
   status: "pending" | "paid" | "processing" | "shipped" | "completed" | "cancelled";
-  payment_method: "manual_transfer" | "qris" | "midtrans";
+  payment_method: "manual_transfer" | "qris" | "duitku" | "midtrans";
   payment_proof_url?: string;
   tracking_number?: string;
   is_digital_only: boolean;
@@ -72,8 +72,21 @@ export interface BankAccount {
 export interface PaymentMethods {
   manual_banks: BankAccount[];
   qris_image_url: string;
-  midtrans_active: boolean;
+  duitku_active: boolean;
+  duitku_sandbox: boolean;
+  duitku_merchant_code?: string;
+  midtrans_active?: boolean;
   midtrans_client_key?: string;
+}
+
+export interface DuitkuSettings {
+  merchant_code: string;
+  api_key?: string;
+  has_api_key?: boolean;
+  sandbox: boolean;
+  enabled: boolean;
+  expiry_period: number;
+  callback_url?: string;
 }
 
 export interface User {
@@ -230,6 +243,39 @@ export const api = {
   // Payments
   async getPaymentMethods() {
     return request<PaymentMethods>("/payment/methods");
+  },
+
+  async createDuitkuInvoice(data: {
+    order_id: number;
+    payment_amount: number;
+    product_details?: string;
+    customer_name?: string;
+    customer_email?: string;
+    customer_phone?: string;
+    return_url?: string;
+    callback_url?: string;
+  }) {
+    return request<{
+      reference: string;
+      payment_url: string;
+      status_code: string;
+      status_message: string;
+      sandbox: boolean;
+    }>("/payment/duitku/create", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getDuitkuSettings() {
+    return request<DuitkuSettings>("/payment/settings");
+  },
+
+  async updateDuitkuSettings(data: DuitkuSettings) {
+    return request<DuitkuSettings>("/payment/settings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 
   async createSnapToken(data: {

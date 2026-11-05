@@ -110,6 +110,73 @@ export function CartPage({
       localStorage.setItem("last_order_id", String(order.id));
       showToast("Pesanan #" + order.id + " berhasil dibuat!");
       onClearCart();
+
+      // Jika menggunakan Duitku, buka popup POP Duitku
+      if (checkoutForm.payment_method === "duitku") {
+        try {
+          const invoice = await api.createDuitkuInvoice({
+            order_id: order.id,
+            payment_amount: order.grand_total,
+            product_details: `Pesanan #${order.id} Supatman Store`,
+            customer_name: checkoutForm.customer_name,
+            customer_email: checkoutForm.customer_email,
+            customer_phone: checkoutForm.customer_phone,
+            return_url: `${window.location.origin}/orders`,
+            callback_url: `${window.location.origin}/payment/duitku/callback`,
+          });
+
+          if (invoice.reference && !invoice.reference.startsWith("MOCK-")) {
+            // Load Duitku POP script
+            await new Promise<void>((resolve, reject) => {
+              const existing = document.getElementById("duitku-script");
+              if (existing) {
+                resolve();
+                return;
+              }
+              const script = document.createElement("script");
+              script.id = "duitku-script";
+              script.src = invoice.sandbox
+                ? "https://app-sandbox.duitku.com/lib/js/duitku.js"
+                : "https://app-prod.duitku.com/lib/js/duitku.js";
+              script.async = true;
+              script.onload = () => resolve();
+              script.onerror = () => reject(new Error("Gagal memuat SDK Duitku"));
+              document.body.appendChild(script);
+            });
+
+            if ((window as any).checkout?.process) {
+              (window as any).checkout.process(invoice.reference, {
+                defaultLanguage: "id",
+                successEvent: function () {
+                  showToast("Pembayaran Duitku berhasil!");
+                  onNavigate("orders", `/orders?order_id=${order.id}`);
+                },
+                pendingEvent: function () {
+                  showToast("Menunggu penyelesaian pembayaran.");
+                  onNavigate("orders", `/orders?order_id=${order.id}`);
+                },
+                errorEvent: function () {
+                  alert("Pembayaran Duitku dibatalkan atau bermasalah.");
+                  onNavigate("orders", `/orders?order_id=${order.id}`);
+                },
+                closeEvent: function () {
+                  onNavigate("orders", `/orders?order_id=${order.id}`);
+                },
+              });
+              onOrderCreated(order);
+              return;
+            }
+          }
+
+          if (invoice.payment_url && !invoice.reference.startsWith("MOCK-")) {
+            window.location.href = invoice.payment_url;
+            return;
+          }
+        } catch (duitkuErr: any) {
+          console.warn("Duitku POP error, proceeding to order detail:", duitkuErr);
+        }
+      }
+
       onOrderCreated(order);
     } catch (err: any) {
       alert(err.message || "Gagal membuat pesanan.");
@@ -447,24 +514,24 @@ export function CartPage({
                       </div>
                     </label>
 
-                    {/* Midtrans */}
+                    {/* Duitku POP Payment Gateway */}
                     <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                      checkoutForm.payment_method === "midtrans"
+                      checkoutForm.payment_method === "duitku"
                         ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
                         : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
                     }`}>
                       <input
                         type="radio"
                         name="payment_method"
-                        value="midtrans"
-                        checked={checkoutForm.payment_method === "midtrans"}
-                        onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "midtrans" })}
+                        value="duitku"
+                        checked={checkoutForm.payment_method === "duitku"}
+                        onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "duitku" })}
                         className="accent-[#151514]"
                       />
-                      <CreditCardIcon className="w-5 h-5 text-[#151514]" />
+                      <CreditCardIcon className="w-5 h-5 text-indigo-700" />
                       <div className="flex-1 text-xs">
-                        <span className="font-bold text-[#151514] block">Payment Gateway (Midtrans)</span>
-                        <span className="text-[11px] text-[#6b665c]">Kartu Kredit, Virtual Account otomatis</span>
+                        <span className="font-bold text-[#151514] block">Payment Gateway (Duitku)</span>
+                        <span className="text-[11px] text-[#6b665c]">Virtual Account, QRIS, E-Wallet, Kartu Kredit (POP)</span>
                       </div>
                     </label>
                   </div>

@@ -46,7 +46,7 @@ graph TD
 2. **Multi-Payment Ready**:
    - **Transfer Bank Manual** (BCA & Mandiri) lengkap dengan fitur unggah bukti transfer.
    - **QRIS Static** (Scan barcode instan).
-   - **Midtrans Payment Gateway** (Credit Card, GoPay, OVO, ShopeePay, Virtual Account).
+   - **Duitku Payment Gateway (POP)** (Virtual Account BCA/Mandiri/BNI/BRI, QRIS, E-Wallet, Kartu Kredit).
 3. **Event-Driven Pub/Sub**:
    - Topik `order-created`: memicu notifikasi pesanan baru secara asinkron.
    - Topik `payment-success`: otomatis meng-update status pesanan menjadi `paid` dan membuka akses download digital.
@@ -76,7 +76,7 @@ encore/
 ├── order/                     — Layanan keranjang belanja, checkout, dan cron pembatalan
 │   ├── order.go
 │   └── migrations/            — Tabel 'orders' & 'order_items'
-├── payment/                   — Layanan pembayaran (Transfer Bank, QRIS, Midtrans)
+├── payment/                   — Layanan pembayaran (Transfer Bank, QRIS, Duitku POP)
 │   └── payment.go
 ├── notification/              — Layanan notifikasi event-driven (Telegram/WhatsApp/Log)
 │   └── notification.go

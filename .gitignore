@@ -5,4 +5,6 @@ encore.gen.cue
 .gemini/
 .codex/
 *.code-workspace
+encore.log
+start_encore.py
 

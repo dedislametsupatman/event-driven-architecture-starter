@@ -789,6 +789,111 @@ export function OrdersPage({
                       </div>
                     </div>
                   )}
+
+                  {/* Duitku POP Payment Gateway Display */}
+                  {(selectedOrder.payment_method === "duitku" || selectedOrder.payment_method === "midtrans") && (
+                    <div className="p-5 bg-gradient-to-br from-indigo-50/70 to-blue-50/70 rounded-xl border border-indigo-200/80 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
+                          💳
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">Pembayaran Duitku POP</p>
+                          <p className="text-[11px] text-slate-500">Virtual Account (BCA, Mandiri, BNI, BRI), QRIS, E-Wallet, Kartu Kredit</p>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        Klik tombol di bawah untuk membuka popup pembayaran Duitku atau menyelesaikan transaksi yang belum terbayar.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const invoice = await api.createDuitkuInvoice({
+                              order_id: selectedOrder.id,
+                              payment_amount: selectedOrder.grand_total,
+                              product_details: `Pesanan #${selectedOrder.id} Supatman Store`,
+                              customer_name: selectedOrder.customer_name,
+                              customer_email: selectedOrder.customer_email,
+                              customer_phone: selectedOrder.customer_phone,
+                              return_url: `${window.location.origin}/orders`,
+                              callback_url: `${window.location.origin}/payment/duitku/callback`,
+                            });
+
+                            if (invoice.reference && !invoice.reference.startsWith("MOCK-")) {
+                              if (!(window as any).checkout?.process) {
+                                await new Promise<void>((resolve, reject) => {
+                                  const existing = document.getElementById("duitku-script");
+                                  if (existing) {
+                                    resolve();
+                                    return;
+                                  }
+                                  const script = document.createElement("script");
+                                  script.id = "duitku-script";
+                                  script.src = invoice.sandbox
+                                    ? "https://app-sandbox.duitku.com/lib/js/duitku.js"
+                                    : "https://app-prod.duitku.com/lib/js/duitku.js";
+                                  script.async = true;
+                                  script.onload = () => resolve();
+                                  script.onerror = () => reject(new Error("Gagal memuat SDK Duitku"));
+                                  document.body.appendChild(script);
+                                });
+                              }
+
+                              if ((window as any).checkout?.process) {
+                                (window as any).checkout.process(invoice.reference, {
+                                  defaultLanguage: "id",
+                                  successEvent: function () {
+                                    showToast("Pembayaran Duitku berhasil!");
+                                    loadUserOrders();
+                                    loadSpecificOrder(selectedOrder.id);
+                                  },
+                                  pendingEvent: function () {
+                                    showToast("Menunggu konfirmasi pembayaran.");
+                                  },
+                                  errorEvent: function () {
+                                    alert("Pembayaran Duitku dibatalkan atau bermasalah.");
+                                  },
+                                  closeEvent: function () {
+                                    loadUserOrders();
+                                    loadSpecificOrder(selectedOrder.id);
+                                  },
+                                });
+                                return;
+                              }
+                            }
+
+                            if (invoice.reference && invoice.reference.startsWith("MOCK-")) {
+                              const sim = confirm(
+                                "⚠️ Kredensial Duitku Belum Diisi (Mode Simulasi Aktif)\n\n" +
+                                "Merchant Code & API Key Duitku belum diisi di menu /cms > Pengaturan.\n\n" +
+                                "Apakah Anda ingin mensimulasikan pembayaran pesanan ini langsung LUNAS sekarang untuk keperluan pengujian?"
+                              );
+                              if (sim) {
+                                await api.confirmManualPayment(selectedOrder.id, selectedOrder.grand_total, invoice.reference);
+                                showToast("Simulasi berhasil: Pesanan telah ditandai Lunas!");
+                                loadUserOrders();
+                                loadSpecificOrder(selectedOrder.id);
+                              }
+                              return;
+                            }
+
+                            if (invoice.payment_url) {
+                              window.location.href = invoice.payment_url;
+                            } else {
+                              showToast("Mode simulasi aktif: Silakan konfirmasi pembayaran manual via Admin CMS.");
+                            }
+                          } catch (err: any) {
+                            alert(err.message || "Gagal memproses pembayaran Duitku.");
+                          }
+                        }}
+                        className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
+                      >
+                        <span>Buka Pembayaran Duitku</span>
+                        <span>→</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Detail Status Pembayaran Sukses */
