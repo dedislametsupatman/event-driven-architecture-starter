@@ -13,14 +13,12 @@ import { AdminCMS } from "./AdminCMS";
 import { OrdersPage } from "./OrdersPage";
 import { CartPage, CartItem } from "./CartPage";
 import { ProfilePage } from "./ProfilePage";
-import SculptureHero from "@/components/ui/liquid-sculpture-hero";
 import {
   ShoppingBagIcon,
   XMarkIcon,
   PlusIcon,
   MinusIcon,
   TruckIcon,
-  UserIcon,
   ArrowPathIcon,
   CubeIcon,
   DocumentArrowDownIcon,
@@ -388,303 +386,107 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Editorial Announcement Bar */}
-      <div className="bg-[#1c1a17] text-[#ebe9e5] py-2.5 px-4 text-xs font-medium border-b border-[#2d2a25]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between text-center sm:text-left">
-          <div className="flex items-center gap-2.5 mx-auto sm:mx-0">
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold text-[#ebe9e5] bg-[#2d2a25] border border-[#3e3b34] px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              {storeSettings.store_badge || "RESMI"}
-            </span>
-            <span className="text-[#ebe9e5]">
-              {storeSettings.store_announcement || "Pengiriman Kilat Pulau Jawa & Akses Unduhan Instan Seluruh Aset Digital"}
-            </span>
-          </div>
-          <div className="hidden lg:flex items-center gap-4 text-[11px] text-[#a8a195] font-mono">
-            <span>GARANSI KEASLIAN</span>
-            <span>•</span>
-            <span>PEMBAYARAN OTOMATIS</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Navigation Header with Glassmorphism */}
-      <header className="sticky top-0 z-30 glass-nav transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          {/* Logo & Brand */}
-          <div
-            onClick={() => navigateTo("store", "/")}
-            className="flex items-center gap-3 cursor-pointer group select-none"
-          >
-            {storeSettings.store_logo_url ? (
-              <img
-                src={storeSettings.store_logo_url}
-                alt={storeSettings.store_name}
-                className="w-11 h-11 rounded-2xl object-contain border border-slate-200/80 p-1 bg-white shadow-md shadow-blue-500/10 group-hover:scale-105 transition-transform"
-              />
-            ) : (
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-bold text-white shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform">
-                <CubeIcon className="w-6 h-6" />
-              </div>
-            )}
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-heading font-black text-xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                  {storeSettings.store_name || "SUPATMAN STORE"}
-                </span>
-                {storeSettings.store_badge && (
-                  <span className="text-[10px] font-mono uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80">
-                    {storeSettings.store_badge}
-                  </span>
-                )}
-              </div>
-              {storeSettings.store_tagline && (
-                <p className="text-[11px] font-medium text-slate-500 hidden sm:block tracking-wide">
-                  {storeSettings.store_tagline}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Search Bar (Katalog) */}
-          <div className="flex-1 max-w-md hidden md:block">
-            <div className="relative">
-              <label htmlFor="search-input" className="sr-only">Cari produk</label>
-              <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                id="search-input"
-                type="text"
-                placeholder="Cari produk fisik atau digital..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  if (viewMode !== "store") {
-                    navigateTo("store", "/");
-                  }
-                }}
-                className="w-full bg-[#f5f3ef] hover:bg-white border border-[#ddd9d2] rounded-xl pl-10 pr-12 py-2.5 text-xs text-[#151514] placeholder-[#78716c] focus:outline-none focus:bg-white focus:border-[#151514] focus:ring-2 focus:ring-[#151514]/10 transition-all"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] font-semibold text-[#78716c] border border-[#ddd9d2] px-1.5 py-0.5 rounded bg-white">
-                /
-              </span>
-            </div>
-          </div>
-
-          {/* Navigation Menu Buttons */}
-          <nav className="flex items-center gap-2" aria-label="Navigasi Utama">
-            {/* Belanja Link */}
-            <button
-              onClick={() => navigateTo("store", "/")}
-              className={`text-xs font-semibold px-3 py-2 rounded-xl transition-all hidden sm:flex items-center gap-1.5 ${
-                viewMode === "store"
-                  ? "bg-[#151514] text-[#ebe9e5] font-bold"
-                  : "text-[#57534e] hover:text-[#151514] hover:bg-[#f5f3ef]"
-              }`}
-            >
-              <ShoppingBagIcon className="w-4 h-4" />
-              <span>Belanja</span>
-            </button>
-
-            {/* Riwayat & Pelacakan Pesanan */}
-            <button
-              onClick={() => navigateTo("orders", "/orders")}
-              className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-all flex items-center gap-1.5 ${
-                viewMode === "orders"
-                  ? "bg-[#151514] text-[#ebe9e5] border-[#151514] font-bold"
-                  : "text-[#57534e] hover:text-[#151514] border-[#ddd9d2] hover:bg-[#f5f3ef]"
-              }`}
-            >
-              <TruckIcon className="w-4 h-4 text-[#151514]" />
-              <span className="hidden sm:inline">Riwayat Pesanan</span>
-            </button>
-
-            {/* Realtime In-App Notifications Bell */}
-            <div className="relative" ref={notificationRef}>
-              <button
-                onClick={() => setIsNotificationsOpen((prev) => !prev)}
-                aria-label={`Notifikasi pesanan (${unreadNotificationsCount} belum dibaca)`}
-                className={`relative p-2 rounded-xl border transition-all flex items-center justify-center ${
-                  isNotificationsOpen
-                    ? "bg-[#151514] text-[#ebe9e5] border-[#151514] ring-2 ring-[#78716c]/20"
-                    : "text-[#57534e] hover:text-[#151514] border-[#ddd9d2] hover:bg-[#f5f3ef]"
-                }`}
+      {/* ================= NOTCHED ARCHITECTURAL HEADER (SUB-PAGES) ================= */}
+      {viewMode !== "store" && (
+        <header className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full z-30">
+          <div className="bg-white rounded-[28px] p-2.5 shadow-md border border-[#ddd9d2]/80">
+            <div className="bg-[#18191b] rounded-[20px] px-4 sm:px-6 py-3 flex items-center justify-between gap-4 relative">
+              {/* Brand Left */}
+              <div
+                onClick={() => navigateTo("store", "/")}
+                className="bg-white text-[#151514] px-4 py-2 rounded-2xl flex items-center gap-3 cursor-pointer group select-none shadow-xs"
               >
-                <BellIcon className="w-4 h-4 text-slate-600" />
-                {unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-600 text-white font-bold text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center ring-2 ring-white animate-pulse shadow-sm">
-                    {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
-                  </span>
+                {storeSettings.store_logo_url ? (
+                  <img
+                    src={storeSettings.store_logo_url}
+                    alt={storeSettings.store_name}
+                    className="w-9 h-9 rounded-xl object-contain"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-xl bg-[#151514] text-white flex items-center justify-center font-black text-lg tracking-tighter">
+                    S
+                  </div>
                 )}
-              </button>
+                <div className="leading-none">
+                  <span className="block text-[10px] font-bold tracking-[0.2em] text-[#57534e] uppercase">
+                    {(storeSettings.store_name || "SUPATMAN STORE").split(" ")[0]}
+                  </span>
+                  <span className="block text-sm font-black tracking-tight text-[#151514] uppercase">
+                    {(storeSettings.store_name || "SUPATMAN STORE").split(" ").slice(1).join(" ") || "STORE"}
+                  </span>
+                </div>
+              </div>
 
-              {/* Notification Dropdown Popover */}
-              <AnimatePresence>
-                {isNotificationsOpen && (
-                  <motion.div
-                    key="notif-dropdown"
-                    initial={{ opacity: 0, y: -6, scale: 0.96 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -6, scale: 0.96 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="absolute right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden"
-                  >
-                  <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-slate-800">Notifikasi Pesanan</span>
-                      {unreadNotificationsCount > 0 && (
-                        <span className="bg-blue-100 text-blue-700 font-bold text-[10px] px-2 py-0.5 rounded-full">
-                          {unreadNotificationsCount} baru
-                        </span>
-                      )}
-                    </div>
-                    {unreadNotificationsCount > 0 && (
-                      <button
-                        onClick={handleMarkAllRead}
-                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        Tandai semua dibaca
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
-                    {notifications.length === 0 ? (
-                      <div className="py-8 px-4 text-center">
-                        <BellIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                        <p className="text-xs text-slate-600 font-semibold">Belum ada notifikasi pesanan</p>
-                        <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
-                          Setiap ada perubahan status pesanan Anda (pembayaran diverifikasi, pesanan dikirim, resi diterbitkan), notifikasi realtime akan muncul di sini.
-                        </p>
-                      </div>
-                    ) : (
-                      notifications.map((n) => (
-                        <button
-                          key={n.id}
-                          onClick={() => handleNotificationClick(n)}
-                          className={`w-full text-left p-3.5 hover:bg-blue-50/50 transition-colors flex items-start gap-3 ${
-                            !n.is_read ? "bg-blue-50/30" : ""
-                          }`}
-                        >
-                          <div className="mt-1 shrink-0">
-                            {!n.is_read ? (
-                              <span className="w-2.5 h-2.5 rounded-full bg-blue-600 block ring-4 ring-blue-100"></span>
-                            ) : (
-                              <span className="w-2.5 h-2.5 rounded-full bg-slate-200 block"></span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1 mb-1">
-                              <span className="font-bold text-xs text-slate-800 truncate">{n.title}</span>
-                              <span className="text-[10px] text-slate-400 shrink-0">
-                                {new Date(n.created_at).toLocaleDateString("id-ID", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  day: "numeric",
-                                  month: "short",
-                                })}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{n.message}</p>
-                            {n.tracking_number && (
-                              <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-mono text-slate-700">
-                                <TruckIcon className="w-3 h-3 text-slate-500" />
-                                <span>Resi: {n.tracking_number}</span>
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
-                    <button
-                      onClick={() => {
-                        setIsNotificationsOpen(false);
-                        navigateTo("orders", "/orders");
-                      }}
-                      className="text-xs font-semibold text-slate-600 hover:text-blue-600"
-                    >
-                      Buka Riwayat Pesanan &rarr;
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            </div>
-
-            {/* Profil / Akun Pengguna */}
-            <button
-              onClick={() => navigateTo("profile", "/profile")}
-              className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all flex items-center gap-1.5 ${
-                viewMode === "profile"
-                  ? "bg-[#151514] text-[#ebe9e5] border-[#151514] font-bold"
-                  : "text-[#57534e] hover:text-[#151514] border-[#ddd9d2] hover:bg-[#f5f3ef]"
-              }`}
-            >
-              <UserIcon className="w-4 h-4 text-[#151514]" />
-              <span className="hidden sm:inline">
-                {currentUser ? currentUser.name.split(" ")[0] : "Akun"}
-              </span>
-            </button>
-
-            {/* Admin CMS Button (jika role admin) */}
-            {currentUser?.role === "admin" && (
-              <button
-                onClick={() => navigateTo("cms", "/cms")}
-                className="text-xs font-bold px-3 py-2 rounded-xl bg-[#151514] text-[#ebe9e5] border border-[#2d2a25] hover:bg-[#292524] transition-all flex items-center gap-1 shadow-2xs"
-              >
-                <span>Admin CMS</span>
-              </button>
-            )}
-
-            {/* Cart Page Button with Badge */}
-            <button
-              onClick={() => navigateTo("cart", "/cart")}
-              aria-label={`Buka keranjang belanja (${totalCartCount} item)`}
-              className={`relative p-2.5 rounded-xl transition-all shadow-xs ${
-                viewMode === "cart"
-                  ? "bg-[#151514] text-[#ebe9e5] ring-2 ring-[#78716c]"
-                  : "bg-[#151514] hover:bg-[#292524] text-[#ebe9e5]"
-              }`}
-            >
-              <ShoppingBagIcon className="w-5 h-5" />
-              {totalCartCount > 0 && (
-                <motion.span
-                  key={totalCartCount}
-                  initial={{ scale: 0.5 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                  className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-white"
+              {/* Center Links */}
+              <nav className="hidden md:flex items-center gap-7 text-xs font-medium text-white/80" aria-label="Navigasi Utama">
+                <button
+                  onClick={() => navigateTo("store", "/")}
+                  className="hover:text-white transition-colors"
                 >
-                  {totalCartCount}
-                </motion.span>
-              )}
-            </button>
-          </nav>
-        </div>
+                  Shop
+                </button>
+                <button
+                  onClick={() => navigateTo("store", "/")}
+                  className="hover:text-white transition-colors"
+                >
+                  Katalog
+                </button>
+                <button
+                  onClick={() => navigateTo("orders", "/orders")}
+                  className={`transition-colors ${viewMode === "orders" ? "text-white font-bold underline underline-offset-4" : "hover:text-white"}`}
+                >
+                  Riwayat Pesanan
+                </button>
+                <button
+                  onClick={() => navigateTo("profile", "/profile")}
+                  className={`transition-colors ${viewMode === "profile" ? "text-white font-bold underline underline-offset-4" : "hover:text-white"}`}
+                >
+                  {currentUser ? currentUser.name.split(" ")[0] : "Akun"}
+                </button>
+                {currentUser?.role === "admin" && (
+                  <button
+                    onClick={() => navigateTo("cms", "/cms")}
+                    className="text-amber-300 hover:text-amber-200 font-bold transition-colors"
+                  >
+                    Admin CMS
+                  </button>
+                )}
+              </nav>
 
-        {/* Mobile Search */}
-        <div className="px-4 pb-3 md:hidden">
-          <div className="relative">
-            <label htmlFor="search-input-mobile" className="sr-only">Cari produk mobile</label>
-            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              id="search-input-mobile"
-              type="text"
-              placeholder="Cari produk fisik atau digital..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                if (viewMode !== "store") {
-                  navigateTo("store", "/");
-                }
-              }}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600"
-            />
+              {/* Right Pill Actions */}
+              <div className="bg-white px-2.5 py-1.5 rounded-full flex items-center gap-1.5">
+                <button
+                  onClick={() => navigateTo("orders", "/orders")}
+                  className="md:hidden text-[11px] font-bold px-2.5 py-1.5 rounded-full text-[#151514] hover:bg-slate-100"
+                >
+                  Pesanan
+                </button>
+                <button
+                  onClick={() => navigateTo("cart", "/cart")}
+                  className="bg-[#18191b] hover:bg-[#2a2c30] text-white text-xs font-semibold px-4 py-2 rounded-full transition-all flex items-center gap-2"
+                >
+                  <span>Keranjang</span>
+                  {totalCartCount > 0 && (
+                    <span className="bg-[#ff5a52] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                      {totalCartCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => navigateTo("cart", "/cart")}
+                  aria-label="Buka Keranjang"
+                  className="w-8 h-8 rounded-full bg-[#18191b] hover:bg-[#2a2c30] text-white flex items-center justify-center transition-transform hover:rotate-12"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="7" y1="17" x2="17" y2="7" />
+                    <polyline points="7 7 17 7 17 17" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* ================= BODY CONTENT ROUTING ================= */}
       <AnimatePresence mode="wait">
@@ -741,42 +543,501 @@ export default function App() {
         </main>
       ) : (
         /* Dedicated Storefront Catalog Page */
-        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-          {/* Liquid Sculpture Hero (dev21st Interactive GPU Particle Showcase) */}
+        <main className="flex-1 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7 w-full">
+          {/* ================= NOTCHED ARCHITECTURAL HERO & INTEGRATED TOP HEADER ================= */}
           <div className="mb-10">
-            <SculptureHero
-              brand={storeSettings.store_name || "SUPATMAN STORE"}
-              eyebrow="EST. 2026 • HARDWARE & DIGITAL ATELIER"
-              headline={"Form that\nanswers back."}
-              headlineAccent={"answers back."}
-              body="Kurasi perlengkapan meja kerja berdesain minimalis dan koleksi aset digital berkualitas tinggi. Sentuh dan gerakkan kursor pada form liquid material untuk merasakan interaksi GPU real-time."
-              primaryCta={{ label: "Jelajahi Katalog ↓", href: "#katalog" }}
-              secondaryCta={{ label: "Lacak Pesanan →", href: "#/orders" }}
-              showNav={false}
-              height="580px"
-              className="rounded-3xl border border-[#ddd9d2] shadow-sm overflow-hidden"
-              backdropText="supatman"
-              background="#ebe9e5"
-              darkBackground="#111110"
-              textColor="#151514"
-              accentColor="#151514"
-            />
+            {/* Outer White Architectural Frame */}
+            <div className="bg-white rounded-[32px] sm:rounded-[42px] p-3 sm:p-4 shadow-2xl border border-[#ddd9d2]/80">
+              {/* Inner Dark Studio Canvas */}
+              <div className="relative rounded-[24px] sm:rounded-[30px] overflow-hidden bg-[#18191b] min-h-[540px] sm:min-h-[620px] flex flex-col justify-between select-none">
+                
+                {/* 1. BACKGROUND: Dark Vertical Architectural Wall Panels */}
+                <div className="absolute inset-0 grid grid-cols-4 sm:grid-cols-8 pointer-events-none">
+                  {Array.from({ length: 8 }).map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="h-full border-r border-white/[0.04] bg-gradient-to-b from-[#202225] via-[#18191b] to-[#121315] relative"
+                    >
+                      <div className="absolute inset-y-0 left-0 w-[1px] bg-black/50" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Ambient Warm Studio Spotlight Glows */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background:
+                      "radial-gradient(circle at 78% 36%, rgba(255, 190, 110, 0.16) 0%, rgba(255, 160, 70, 0.05) 28%, transparent 60%), radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.05) 0%, transparent 55%)",
+                  }}
+                />
+
+                {/* 2. TOP-LEFT CUTOUT NOTCH: Brand Logo ("STYLECRAFT DESIGN" style) */}
+                <div
+                  onClick={() => navigateTo("store", "/")}
+                  className="absolute top-0 left-0 z-30 bg-white rounded-br-[28px] sm:rounded-br-[34px] pr-5 sm:pr-8 pb-3.5 sm:pb-4 pt-1.5 sm:pt-2 pl-2 sm:pl-3 flex items-center gap-3 cursor-pointer group"
+                >
+                  {/* Inverted Concave Fillet: Top-Right of Left Notch */}
+                  <svg
+                    className="absolute top-0 -right-7 w-7 h-7 text-white pointer-events-none"
+                    viewBox="0 0 28 28"
+                    fill="none"
+                  >
+                    <path d="M0 0H28C12.536 0 0 12.536 0 28V0Z" fill="currentColor" />
+                  </svg>
+                  {/* Inverted Concave Fillet: Bottom-Left of Left Notch */}
+                  <svg
+                    className="absolute -bottom-7 left-0 w-7 h-7 text-white pointer-events-none"
+                    viewBox="0 0 28 28"
+                    fill="none"
+                  >
+                    <path d="M0 0H28C12.536 0 0 12.536 0 28V0Z" fill="currentColor" />
+                  </svg>
+
+                  {/* Monogram / Logo Icon */}
+                  {storeSettings.store_logo_url ? (
+                    <img
+                      src={storeSettings.store_logo_url}
+                      alt={storeSettings.store_name}
+                      className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl object-contain p-0.5 bg-white group-hover:scale-105 transition-transform"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#151514] text-white flex items-center justify-center font-black text-2xl tracking-tighter shadow-sm group-hover:scale-105 transition-transform">
+                      S
+                    </div>
+                  )}
+
+                  {/* Two-line Stacked Typography */}
+                  <div className="leading-none">
+                    <span className="block text-[10px] sm:text-[11px] font-bold tracking-[0.22em] text-[#292524] uppercase">
+                      {(storeSettings.store_name || "SUPATMAN STORE").split(" ")[0]}
+                    </span>
+                    <span className="block text-base sm:text-xl font-black tracking-tight text-[#151514] uppercase mt-0.5">
+                      {(storeSettings.store_name || "SUPATMAN STORE").split(" ").slice(1).join(" ") || "DESIGN"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3. TOP-CENTER FLOATING NAVIGATION LINKS */}
+                <div className="relative z-20 pt-4 sm:pt-6 px-4 flex items-center justify-center">
+                  <nav
+                    className="hidden lg:flex items-center gap-10 text-xs sm:text-[13px] font-medium text-white/85"
+                    aria-label="Navigasi Utama"
+                  >
+                    <button
+                      onClick={() => navigateTo("store", "/")}
+                      className="text-white font-semibold hover:text-[#ff5a52] transition-colors"
+                    >
+                      Shop
+                    </button>
+                    <a
+                      href="#katalog"
+                      className="hover:text-white transition-colors"
+                    >
+                      Katalog
+                    </a>
+                    <button
+                      onClick={() => navigateTo("orders", "/orders")}
+                      className="hover:text-white transition-colors flex items-center gap-1.5"
+                    >
+                      <span>Riwayat Pesanan</span>
+                    </button>
+                    <button
+                      onClick={() => navigateTo("profile", "/profile")}
+                      className="hover:text-white transition-colors"
+                    >
+                      {currentUser ? currentUser.name.split(" ")[0] : "Akun Saya"}
+                    </button>
+                    {currentUser?.role === "admin" && (
+                      <button
+                        onClick={() => navigateTo("cms", "/cms")}
+                        className="px-2.5 py-1 rounded-full bg-white/10 text-amber-300 hover:bg-white/20 font-bold text-[11px] transition-all"
+                      >
+                        Admin CMS
+                      </button>
+                    )}
+                  </nav>
+                </div>
+
+                {/* 4. TOP-RIGHT CUTOUT NOTCH: Action Pill + Circle Arrow ("Connect with us ↗" style) */}
+                <div className="absolute top-0 right-0 z-30 bg-white rounded-bl-[28px] sm:rounded-bl-[34px] pl-4 sm:pl-6 pb-3.5 sm:pb-4 pt-1.5 sm:pt-2 pr-1.5 sm:pr-2 flex items-center gap-2">
+                  {/* Inverted Concave Fillet: Top-Left of Right Notch */}
+                  <svg
+                    className="absolute top-0 -left-7 w-7 h-7 text-white pointer-events-none"
+                    viewBox="0 0 28 28"
+                    fill="none"
+                  >
+                    <path d="M28 0H0C15.464 0 28 12.536 28 28V0Z" fill="currentColor" />
+                  </svg>
+                  {/* Inverted Concave Fillet: Bottom-Right of Right Notch */}
+                  <svg
+                    className="absolute -bottom-7 right-0 w-7 h-7 text-white pointer-events-none"
+                    viewBox="0 0 28 28"
+                    fill="none"
+                  >
+                    <path d="M28 0H0C15.464 0 28 12.536 28 28V0Z" fill="currentColor" />
+                  </svg>
+
+                  {/* Realtime In-App Notifications Bell */}
+                  <div className="relative" ref={notificationRef}>
+                    <button
+                      onClick={() => setIsNotificationsOpen((prev) => !prev)}
+                      aria-label={`Notifikasi pesanan (${unreadNotificationsCount} belum dibaca)`}
+                      className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-slate-200 hover:bg-slate-100 text-[#151514] flex items-center justify-center transition-all"
+                    >
+                      <BellIcon className="w-4 h-4" />
+                      {unreadNotificationsCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 bg-[#ff5a52] text-white font-bold text-[9px] min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center ring-2 ring-white">
+                          {unreadNotificationsCount > 9 ? "9+" : unreadNotificationsCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Notification Dropdown Popover */}
+                    <AnimatePresence>
+                      {isNotificationsOpen && (
+                        <motion.div
+                          key="notif-dropdown"
+                          initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                          transition={{ duration: 0.15, ease: "easeOut" }}
+                          className="absolute right-0 mt-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden"
+                        >
+                          <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs text-slate-800">Notifikasi Pesanan</span>
+                              {unreadNotificationsCount > 0 && (
+                                <span className="bg-blue-100 text-blue-700 font-bold text-[10px] px-2 py-0.5 rounded-full">
+                                  {unreadNotificationsCount} baru
+                                </span>
+                              )}
+                            </div>
+                            {unreadNotificationsCount > 0 && (
+                              <button
+                                onClick={handleMarkAllRead}
+                                className="text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                Tandai semua dibaca
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="max-h-[340px] overflow-y-auto divide-y divide-slate-100">
+                            {notifications.length === 0 ? (
+                              <div className="py-8 px-4 text-center">
+                                <BellIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                                <p className="text-xs text-slate-600 font-semibold">Belum ada notifikasi pesanan</p>
+                                <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                                  Setiap ada perubahan status pesanan Anda, notifikasi realtime akan muncul di sini.
+                                </p>
+                              </div>
+                            ) : (
+                              notifications.map((n) => (
+                                <button
+                                  key={n.id}
+                                  onClick={() => handleNotificationClick(n)}
+                                  className={`w-full text-left p-3.5 hover:bg-blue-50/50 transition-colors flex items-start gap-3 ${
+                                    !n.is_read ? "bg-blue-50/30" : ""
+                                  }`}
+                                >
+                                  <div className="mt-1 shrink-0">
+                                    {!n.is_read ? (
+                                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 block ring-4 ring-blue-100"></span>
+                                    ) : (
+                                      <span className="w-2.5 h-2.5 rounded-full bg-slate-200 block"></span>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-1 mb-1">
+                                      <span className="font-bold text-xs text-slate-800 truncate">{n.title}</span>
+                                      <span className="text-[10px] text-slate-400 shrink-0">
+                                        {new Date(n.created_at).toLocaleDateString("id-ID", {
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          day: "numeric",
+                                          month: "short",
+                                        })}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">{n.message}</p>
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+
+                          <div className="p-2.5 bg-slate-50 border-t border-slate-100 text-center">
+                            <button
+                              onClick={() => {
+                                setIsNotificationsOpen(false);
+                                navigateTo("orders", "/orders");
+                              }}
+                              className="text-xs font-semibold text-slate-600 hover:text-blue-600"
+                            >
+                              Buka Riwayat Pesanan &rarr;
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Dark Pill CTA Button ("Connect with us" / Cart) */}
+                  <button
+                    onClick={() => navigateTo("cart", "/cart")}
+                    className="bg-[#1b1c1f] hover:bg-[#2c2e33] text-white text-xs font-semibold px-4 sm:px-5 py-2.5 sm:py-3 rounded-full transition-all flex items-center gap-2 shadow-sm"
+                  >
+                    <ShoppingBagIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Keranjang</span>
+                    {totalCartCount > 0 && (
+                      <span className="bg-[#ff5a52] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                        {totalCartCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Circular Diagonal Arrow Button (↗) */}
+                  <button
+                    onClick={() => {
+                      if (storeSettings.store_phone) {
+                        const cleanPhone = storeSettings.store_phone.replace(/[^0-9]/g, "");
+                        const waPhone = cleanPhone.startsWith("0") ? "62" + cleanPhone.slice(1) : cleanPhone;
+                        window.open(`https://wa.me/${waPhone}`, "_blank");
+                      } else {
+                        navigateTo("cart", "/cart");
+                      }
+                    }}
+                    title="Hubungi Kami / Checkout"
+                    className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#1b1c1f] hover:bg-[#ff5a52] text-white flex items-center justify-center transition-all hover:rotate-12 shadow-sm"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="7" y1="17" x2="17" y2="7" />
+                      <polyline points="7 7 17 7 17 17" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* 5. HANGING INDUSTRIAL PENDANT LAMPS (Top Right Decorative Studio Lighting) */}
+                <div className="hidden md:block absolute top-0 right-[18%] z-10 pointer-events-none">
+                  {/* Lamp 1 (Higher, Larger Bronze Dome) */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-[2px] h-28 bg-gradient-to-b from-black via-zinc-700 to-zinc-800" />
+                    <div className="w-3 h-2.5 bg-zinc-800 rounded-t-sm" />
+                    <div
+                      className="w-24 h-11 rounded-t-full border-b-2 border-amber-200/60 shadow-2xl relative"
+                      style={{
+                        background: "linear-gradient(135deg, #27272a 0%, #52525b 45%, #78350f 85%, #18181b 100%)",
+                      }}
+                    >
+                      {/* Warm Bulb Glow Underneath */}
+                      <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-3 rounded-full bg-amber-200 blur-[4px]" />
+                      <div className="absolute -bottom-16 left-1/2 -translate-x-1/2 w-40 h-28 rounded-full bg-amber-400/15 blur-2xl" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="hidden md:block absolute top-0 right-[11%] z-10 pointer-events-none">
+                  {/* Lamp 2 (Lower, Conical Brass Shade) */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-[1.5px] h-40 bg-gradient-to-b from-black via-zinc-700 to-zinc-800" />
+                    <div className="w-2.5 h-3 bg-amber-700/80 rounded-t-sm" />
+                    <div
+                      className="w-20 h-8 relative"
+                      style={{
+                        clipPath: "polygon(25% 0%, 75% 0%, 100% 100%, 0% 100%)",
+                        background: "linear-gradient(135deg, #78350f 0%, #b45309 45%, #27272a 90%)",
+                      }}
+                    />
+                    <div className="w-6 h-2 rounded-full bg-amber-100 blur-[3px] -mt-0.5" />
+                  </div>
+                </div>
+
+                {/* 6. CENTER HERO HEADLINE, SUBTITLE & CORAL PILL CTA */}
+                <div className="relative z-20 px-5 sm:px-10 pt-16 sm:pt-12 pb-52 sm:pb-60 text-center max-w-3xl mx-auto my-auto">
+                  <motion.h1
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="text-3xl sm:text-5xl lg:text-[52px] font-extrabold text-white tracking-tight leading-[1.14]"
+                    style={{ fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}
+                  >
+                    Modern Setup &amp; Digital
+                    <br />
+                    for Minimalist Lovers
+                  </motion.h1>
+
+                  <motion.p
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.45, delay: 0.08 }}
+                    className="mt-4 text-xs sm:text-sm text-white/75 max-w-md mx-auto leading-relaxed font-sans"
+                  >
+                    {storeSettings.store_announcement ||
+                      "Experience the ultimate relaxation and productivity with our curated collection of serene minimalist hardware & digital designs"}
+                  </motion.p>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.15 }}
+                    className="mt-7 flex items-center justify-center gap-3"
+                  >
+                    <a
+                      href="#katalog"
+                      className="inline-flex items-center gap-3.5 bg-[#ff5a52] hover:bg-[#ff4238] text-white font-semibold text-xs sm:text-sm pl-6 pr-2 py-2 rounded-full shadow-xl shadow-[#ff5a52]/30 transition-all hover:scale-105 active:scale-95 font-sans"
+                    >
+                      <span>Explore More</span>
+                      <span className="w-8 h-8 rounded-full bg-white text-[#151514] flex items-center justify-center shadow-xs">
+                        <svg
+                          className="w-4 h-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="7" y1="17" x2="17" y2="7" />
+                          <polyline points="7 7 17 7 17 17" />
+                        </svg>
+                      </span>
+                    </a>
+                  </motion.div>
+
+                  {/* Mobile Quick Navigation Links */}
+                  <div className="mt-5 flex lg:hidden items-center justify-center gap-4 text-[11px] font-semibold text-white/75">
+                    <a href="#katalog" className="hover:text-white underline underline-offset-4">Katalog</a>
+                    <span>•</span>
+                    <button onClick={() => navigateTo("orders", "/orders")} className="hover:text-white">Riwayat Pesanan</button>
+                    <span>•</span>
+                    <button onClick={() => navigateTo("profile", "/profile")} className="hover:text-white">
+                      {currentUser ? currentUser.name.split(" ")[0] : "Akun"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 7. BOTTOM ARCHITECTURAL STUDIO SCENE: Plants, Minimalist Dark Sofa & Wooden Floor */}
+                <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none flex flex-col justify-end">
+                  <div className="relative w-full max-w-5xl mx-auto px-4 sm:px-10 flex items-end justify-between -mb-3">
+                    {/* Left Indoor Botanical Plants & Planter Pots */}
+                    <div className="hidden sm:flex items-end -space-x-4 z-10">
+                      {/* Tall Fiddle Leaf Plant */}
+                      <div className="flex flex-col items-center">
+                        <svg className="w-28 lg:w-36 h-44 lg:h-56 -mb-4 drop-shadow-2xl" viewBox="0 0 140 220" fill="none">
+                          <path d="M70 210 C68 150, 65 90, 72 30" stroke="#3f2e21" strokeWidth="3.5" strokeLinecap="round" />
+                          <path d="M70 150 C50 135, 30 125, 22 105 C38 100, 58 115, 70 140" fill="#2d5a27" />
+                          <path d="M70 130 C92 115, 112 100, 118 80 C100 78, 82 95, 70 120" fill="#3a7033" />
+                          <path d="M71 100 C45 85, 20 75, 15 52 C35 48, 58 68, 71 92" fill="#47823d" />
+                          <path d="M72 80 C95 62, 118 50, 122 28 C100 30, 82 48, 72 72" fill="#2d5a27" />
+                          <path d="M72 52 C55 35, 42 20, 48 6 C65 10, 75 28, 72 48" fill="#529447" />
+                          <path d="M72 45 C85 28, 102 18, 98 5 C82 8, 74 25, 72 42" fill="#3a7033" />
+                        </svg>
+                        <div className="w-16 lg:w-20 h-16 lg:h-20 rounded-b-2xl rounded-t-sm bg-gradient-to-r from-[#232528] via-[#2e3136] to-[#18191b] border-t border-white/10 shadow-2xl" />
+                      </div>
+                      {/* Medium Green Plant + Warm Wood Side Drum */}
+                      <div className="flex items-end gap-2">
+                        <div className="flex flex-col items-center">
+                          <svg className="w-20 lg:w-24 h-28 lg:h-32 -mb-3 drop-shadow-xl" viewBox="0 0 100 130" fill="none">
+                            <path d="M50 120 Q30 80 15 45 Q40 55 50 110" fill="#3a7033" />
+                            <path d="M50 120 Q72 75 88 40 Q62 52 50 110" fill="#4d8c42" />
+                            <path d="M50 120 Q48 65 50 20 Q60 60 50 115" fill="#5da150" />
+                            <path d="M50 120 Q25 95 10 75 Q35 80 50 115" fill="#2d5a27" />
+                          </svg>
+                          <div className="w-12 lg:w-14 h-14 lg:h-16 rounded-b-xl bg-gradient-to-r from-[#27292d] to-[#1a1c1f] border-t border-white/10 shadow-xl" />
+                        </div>
+                        <div className="w-10 lg:w-12 h-9 lg:h-11 rounded-lg bg-gradient-to-b from-[#9c6b3b] to-[#6e4720] shadow-xl border-t border-amber-200/30" />
+                      </div>
+                    </div>
+
+                    {/* Centerpiece Minimalist Charcoal Tufted Studio Sofa */}
+                    <div className="mx-auto w-full max-w-md sm:max-w-lg lg:max-w-xl z-20 px-2">
+                      <div className="relative flex flex-col items-center">
+                        {/* Backrest Cushions */}
+                        <div className="w-[84%] flex items-end justify-center gap-2 -mb-3 z-10">
+                          <div className="w-1/2 h-14 sm:h-20 rounded-t-2xl bg-gradient-to-b from-[#35373c] via-[#282a2e] to-[#1d1e22] border-t border-white/15 shadow-lg relative">
+                            {/* Throw Pillow Left */}
+                            <div className="absolute -left-3 bottom-0 w-12 sm:w-14 h-11 sm:h-13 rounded-xl bg-gradient-to-br from-[#3e4046] to-[#222428] -rotate-6 shadow-md border-t border-white/10" />
+                          </div>
+                          <div className="w-1/2 h-16 sm:h-22 rounded-t-2xl bg-gradient-to-b from-[#383a40] via-[#2a2c30] to-[#1d1e22] border-t border-white/15 shadow-lg relative">
+                            {/* Throw Pillow Right */}
+                            <div className="absolute left-3 bottom-0 w-14 sm:w-16 h-10 sm:h-12 rounded-xl bg-gradient-to-bl from-[#42454b] to-[#24262a] rotate-3 shadow-md border-t border-white/10" />
+                          </div>
+                        </div>
+
+                        {/* Sofa Armrests + Deep Low-Profile Seat Base */}
+                        <div className="w-full flex items-end">
+                          {/* Left Armrest */}
+                          <div className="w-10 sm:w-14 h-16 sm:h-20 rounded-tl-3xl rounded-bl-xl bg-gradient-to-r from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -mr-2 z-20" />
+                          {/* Main Double Seat Cushion */}
+                          <div className="flex-1 grid grid-cols-2 gap-0.5 bg-[#141517] rounded-t-xl overflow-hidden shadow-2xl border-t border-white/10">
+                            <div className="h-14 sm:h-18 bg-gradient-to-b from-[#32343a] via-[#26282c] to-[#1b1c20] relative">
+                              <div className="absolute inset-x-4 top-2 h-[1px] bg-white/10" />
+                            </div>
+                            <div className="h-14 sm:h-18 bg-gradient-to-b from-[#34363c] via-[#26282c] to-[#1b1c20] relative">
+                              <div className="absolute inset-x-4 top-2 h-[1px] bg-white/10" />
+                            </div>
+                          </div>
+                          {/* Right Armrest */}
+                          <div className="w-10 sm:w-14 h-16 sm:h-20 rounded-tr-3xl rounded-br-xl bg-gradient-to-l from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -ml-2 z-20" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right Indoor Plant & Warm Wood Ottoman */}
+                    <div className="hidden sm:flex items-end gap-2 z-10">
+                      <div className="w-10 lg:w-12 h-9 lg:h-11 rounded-lg bg-gradient-to-b from-[#b8864c] to-[#7c5325] shadow-xl border-t border-amber-100/40" />
+                      <div className="flex flex-col items-center">
+                        <svg className="w-24 lg:w-28 h-32 lg:h-40 -mb-3 drop-shadow-2xl" viewBox="0 0 120 160" fill="none">
+                          <path d="M60 150 C58 110, 55 75, 60 35" stroke="#3f2e21" strokeWidth="3" />
+                          <path d="M60 120 C35 105, 18 90, 15 68 C35 68, 50 85, 60 112" fill="#3a7033" />
+                          <path d="M60 105 C85 90, 102 75, 105 52 C85 52, 70 72, 60 98" fill="#4d8c42" />
+                          <path d="M60 80 C40 62, 28 45, 32 24 C50 28, 58 50, 60 75" fill="#5da150" />
+                          <path d="M60 65 C78 48, 92 35, 88 16 C72 20, 64 42, 60 60" fill="#2d5a27" />
+                        </svg>
+                        <div className="w-14 lg:w-16 h-14 lg:h-16 rounded-b-2xl bg-gradient-to-r from-[#2c2e33] via-[#383b42] to-[#1e2024] border-t border-white/15 shadow-2xl" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Warm Wooden Slatted Studio Floor */}
+                  <div
+                    className="h-9 sm:h-12 w-full border-t border-amber-900/40 relative overflow-hidden"
+                    style={{
+                      background:
+                        "linear-gradient(180deg, #3d2817 0%, #5c3d24 35%, #785130 70%, #4a301b 100%)",
+                    }}
+                  >
+                    {/* Perspective Wood Plank Lines */}
+                    <div
+                      className="absolute inset-0 opacity-35"
+                      style={{
+                        backgroundImage:
+                          "repeating-linear-gradient(90deg, transparent, transparent 48px, rgba(0,0,0,0.45) 48px, rgba(0,0,0,0.45) 50px)",
+                      }}
+                    />
+                    {/* Floor Ambient Shadow under Sofa */}
+                    <div className="absolute inset-x-1/4 top-0 h-5 bg-black/60 blur-md" />
+                  </div>
+                </div>
+              </div>
+            </div>
 
             {/* 3 Keunggulan Atelier Badges */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 mt-6 border-t border-[#ddd9d2]">
-              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-[#f5f3ef] border border-[#ddd9d2] shadow-2xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-5 mt-5">
+              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-white border border-[#ddd9d2] shadow-2xs">
                 <div className="w-8 h-8 rounded-xl bg-[#ebe9e5] text-[#151514] flex items-center justify-center flex-shrink-0 border border-[#ddd9d2]">
                   <TruckIcon className="w-4 h-4" />
                 </div>
                 <span>Ekspedisi Kilat &amp; Resi</span>
               </div>
-              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-[#f5f3ef] border border-[#ddd9d2] shadow-2xs">
+              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-white border border-[#ddd9d2] shadow-2xs">
                 <div className="w-8 h-8 rounded-xl bg-[#ebe9e5] text-[#151514] flex items-center justify-center flex-shrink-0 border border-[#ddd9d2]">
                   <ArrowDownTrayIcon className="w-4 h-4" />
                 </div>
                 <span>Akses Unduh Instan</span>
               </div>
-              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-[#f5f3ef] border border-[#ddd9d2] shadow-2xs">
+              <div className="flex items-center gap-2.5 text-xs text-[#151514] font-semibold p-3.5 rounded-2xl bg-white border border-[#ddd9d2] shadow-2xs">
                 <div className="w-8 h-8 rounded-xl bg-[#ebe9e5] text-[#151514] flex items-center justify-center flex-shrink-0 border border-[#ddd9d2]">
                   <ShieldCheckIcon className="w-4 h-4" />
                 </div>
@@ -785,62 +1046,92 @@ export default function App() {
             </div>
           </div>
 
-          {/* Filter Bar (Segmented Control & Tags) */}
-          <section id="katalog" className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8" aria-label="Filter kategori">
-            <div className="inline-flex p-1 bg-[#ddd9d2]/60 rounded-2xl border border-[#ddd9d2]">
-              <button
-                onClick={() => {
-                  setDigitalFilter("");
-                  setSelectedCategory("");
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect ${
-                  digitalFilter === "" && selectedCategory === ""
-                    ? "bg-white text-[#151514] shadow-xs"
-                    : "text-[#57534e] hover:text-[#151514]"
-                }`}
-              >
-                Semua Koleksi
-              </button>
-              <button
-                onClick={() => setDigitalFilter("false")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 tap-effect ${
-                  digitalFilter === "false"
-                    ? "bg-white text-[#151514] shadow-xs"
-                    : "text-[#57534e] hover:text-[#151514]"
-                }`}
-              >
-                <CubeIcon className="w-4 h-4 text-[#151514]" />
-                <span>Barang Fisik</span>
-              </button>
-              <button
-                onClick={() => setDigitalFilter("true")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 tap-effect ${
-                  digitalFilter === "true"
-                    ? "bg-white text-[#151514] shadow-xs"
-                    : "text-[#57534e] hover:text-[#151514]"
-                }`}
-              >
-                <DocumentArrowDownIcon className="w-4 h-4 text-[#151514]" />
-                <span>Aset Digital</span>
-              </button>
+          {/* Search & Filter Bar (Segmented Control, Search Input & Category Tags) */}
+          <section id="katalog" className="space-y-4 mb-8 scroll-mt-6" aria-label="Filter dan pencarian kategori">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="inline-flex p-1 bg-[#ddd9d2]/60 rounded-2xl border border-[#ddd9d2] self-start">
+                <button
+                  onClick={() => {
+                    setDigitalFilter("");
+                    setSelectedCategory("");
+                  }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all tap-effect ${
+                    digitalFilter === "" && selectedCategory === ""
+                      ? "bg-white text-[#151514] shadow-xs"
+                      : "text-[#57534e] hover:text-[#151514]"
+                  }`}
+                >
+                  Semua Koleksi
+                </button>
+                <button
+                  onClick={() => setDigitalFilter("false")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 tap-effect ${
+                    digitalFilter === "false"
+                      ? "bg-white text-[#151514] shadow-xs"
+                      : "text-[#57534e] hover:text-[#151514]"
+                  }`}
+                >
+                  <CubeIcon className="w-4 h-4 text-[#151514]" />
+                  <span>Barang Fisik</span>
+                </button>
+                <button
+                  onClick={() => setDigitalFilter("true")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 tap-effect ${
+                    digitalFilter === "true"
+                      ? "bg-white text-[#151514] shadow-xs"
+                      : "text-[#57534e] hover:text-[#151514]"
+                  }`}
+                >
+                  <DocumentArrowDownIcon className="w-4 h-4 text-[#151514]" />
+                  <span>Aset Digital</span>
+                </button>
+              </div>
+
+              {/* Integrated Search Bar */}
+              <div className="relative w-full md:w-80">
+                <label htmlFor="search-input" className="sr-only">Cari produk</label>
+                <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#78716c]" />
+                <input
+                  id="search-input"
+                  type="text"
+                  placeholder="Cari produk fisik atau digital..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full bg-white border border-[#ddd9d2] rounded-2xl pl-10 pr-10 py-2.5 text-xs text-[#151514] placeholder-[#78716c] focus:outline-none focus:border-[#151514] shadow-2xs transition-all"
+                />
+                {search ? (
+                  <button
+                    onClick={() => setSearch("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-[10px] font-semibold text-[#78716c] border border-[#ddd9d2] px-1.5 py-0.5 rounded bg-[#f5f3ef]">
+                    /
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Category Pills */}
-            <div className="flex flex-wrap items-center gap-1.5">
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedCategory(selectedCategory === c.slug ? "" : c.slug)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all tap-effect ${
-                    selectedCategory === c.slug
-                      ? "bg-[#151514] text-[#ebe9e5] shadow-xs"
-                      : "bg-[#f5f3ef] text-[#57534e] hover:text-[#151514] border border-[#ddd9d2] hover:bg-white"
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
+            {categories.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setSelectedCategory(selectedCategory === c.slug ? "" : c.slug)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all tap-effect ${
+                      selectedCategory === c.slug
+                        ? "bg-[#151514] text-[#ebe9e5] shadow-xs"
+                        : "bg-white text-[#57534e] hover:text-[#151514] border border-[#ddd9d2]"
+                    }`}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* Product Grid */}
