@@ -573,22 +573,18 @@ export default function App() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => navigateTo("store", "/")}
-                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs"
+                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
                 >
                   <span>← Kembali ke Toko</span>
                 </button>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
-                      <span>Portalbun Manga Reader</span>
-                      <span className="text-sm">🎌</span>
+                    <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
+                      Portalbun Manga Reader
                     </h1>
-                    <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[10px] font-mono font-bold">
-                      LIVE
-                    </span>
                   </div>
-                  <p className="text-[11px] text-white/60">
-                    Membaca komik web manga online resmi via <span className="font-mono text-amber-300">manga.rasb.co.id</span>
+                  <p className="text-[11px] text-stone-400">
+                    Koleksi komik dan web manga pilihan, terintegrasi langsung di Portalbun
                   </p>
                 </div>
               </div>
@@ -599,16 +595,16 @@ export default function App() {
                     const iframe = document.getElementById("portalbun-manga-iframe") as HTMLIFrameElement;
                     if (iframe) iframe.src = iframe.src;
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white text-xs font-mono transition-all flex items-center gap-1 border border-white/10"
-                  title="Reload Halaman Manga"
+                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-stone-300 hover:text-white text-xs transition-colors flex items-center gap-1.5 border border-white/10"
+                  title="Muat ulang reader manga"
                 >
-                  <span>↻ Reload</span>
+                  <span>↻ Muat Ulang</span>
                 </button>
                 <a
                   href="https://manga.rasb.co.id"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#ff5a52] to-[#ff385c] hover:from-[#ff4238] hover:to-[#e02447] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-rose-500/20"
+                  className="px-4 py-2 rounded-xl bg-white text-[#151514] hover:bg-stone-200 text-xs font-bold transition-colors flex items-center gap-1.5"
                 >
                   <span>Buka di Tab Baru</span>
                   <span>↗</span>
@@ -1459,165 +1455,102 @@ export default function App() {
             </div>
           </div>
 
-          {/* ================= 1 FULL ROW CARD: PORTALBUN WEB MANGA BANNER ================= */}
-          <motion.div
-            whileHover={{ y: -3 }}
-            transition={{ duration: 0.2 }}
+          {/* ================= 1 FULL ROW: PORTALBUN WEB MANGA EDITORIAL BANNER ================= */}
+          <div
             onClick={() => navigateTo("manga", "/manga")}
-            className="group relative w-full mb-10 rounded-[30px] sm:rounded-[36px] overflow-hidden border border-[#2d2a25] shadow-2xl cursor-pointer select-none bg-[#0e1014]"
+            className="group relative w-full mb-10 rounded-[28px] sm:rounded-[36px] overflow-hidden bg-[#141518] border border-[#26282e] cursor-pointer select-none transition-colors hover:border-stone-600"
           >
-            {/* Background Manga Art with Japanese Aesthetic */}
-            <img
-              src="https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1600&q=80"
-              alt="Portalbun Manga Reader"
-              loading="lazy"
-              className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 opacity-40"
-            />
-
-            {/* Dark Dramatic Manga Screentone & Vignette Overlays */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0b0d10] via-[#0b0d10]/95 to-[#0b0d10]/60 sm:to-[#0b0d10]/30" />
+            {/* Japanese Graphic Novel Atmospheric Background */}
+            <div className="absolute inset-0 bg-[#141518] z-0" />
             <div
-              className="absolute inset-0 opacity-15 pointer-events-none"
+              className="absolute inset-0 opacity-10 pointer-events-none z-0"
               style={{
-                backgroundImage: "radial-gradient(rgba(255, 255, 255, 0.2) 1px, transparent 1px)",
-                backgroundSize: "16px 16px",
+                backgroundImage: "radial-gradient(#ffffff 1px, transparent 1px)",
+                backgroundSize: "24px 24px",
               }}
             />
 
-            {/* Ambient Anime Glow Spots */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background:
-                  "radial-gradient(circle at 15% 50%, rgba(244, 63, 94, 0.16) 0%, transparent 50%), radial-gradient(circle at 85% 50%, rgba(168, 85, 247, 0.14) 0%, transparent 50%)",
-              }}
-            />
-
-            {/* Inner Content Grid */}
-            <div className="relative z-10 p-6 sm:p-9 lg:p-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-              {/* Left Column: Headline, Badge & Description */}
-              <div className="max-w-2xl space-y-3.5">
-                {/* Anime Eyebrow Pill */}
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-rose-500/15 border border-rose-400/35 backdrop-blur-md text-rose-300 text-[10px] sm:text-xs font-mono font-bold tracking-wider uppercase">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                  <span>FITUR BARU PORTALBUN • WEB MANGA</span>
-                  <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-sans font-black">
-                    HOT
-                  </span>
-                </div>
-
-                {/* Big Engaging Headline */}
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                  Di Portalbun Sekarang Kamu Bisa
-                  <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 via-amber-200 to-sky-300">
-                    Baca Web Manga Online Loh! 🎌
-                  </span>
-                </h2>
-
-                <p className="text-xs sm:text-sm text-white/80 leading-relaxed font-sans max-w-xl">
-                  Akses ribuan chapter komik manga, manhwa &amp; manhua favoritmu dengan update chapter tercepat tiap hari, tampilan reader bebas iklan pop-up yang mengganggu, langsung terintegrasi di web Portalbun.
+            <div className="relative z-10 p-7 sm:p-10 lg:p-12 flex flex-col lg:flex-row lg:items-center justify-between gap-8 lg:gap-12">
+              {/* Left Column: Direct Editorial Typography */}
+              <div className="max-w-2xl space-y-4">
+                <p className="text-xs uppercase tracking-widest text-stone-400 font-semibold">
+                  Pustaka Komik Digital
                 </p>
 
-                {/* Feature Chips */}
-                <div className="pt-1 flex flex-wrap items-center gap-2">
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-white/90 text-[11px] font-mono border border-white/15 flex items-center gap-1.5">
-                    <span>⚡</span>
-                    <span>Update Chapter Tiap Hari</span>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-[1.15]">
+                  Baca Web Manga Langsung di Portalbun
+                </h2>
+
+                <p className="text-sm sm:text-base text-stone-300 leading-relaxed max-w-xl">
+                  Ribuan chapter komik dan graphic novel pilihan siap dibaca langsung dari peramban Anda. Ringan, responsif di perangkat seluler, dan terintegrasi penuh tanpa aplikasi tambahan.
+                </p>
+
+                {/* Editorial Metadata Row */}
+                <div className="pt-1 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-stone-400">
+                  <span className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    Pembaruan Chapter Harian
                   </span>
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-white/90 text-[11px] font-mono border border-white/15 flex items-center gap-1.5">
-                    <span>📖</span>
-                    <span>Reader Responsif Mobile &amp; PC</span>
-                  </span>
-                  <span className="px-3 py-1 rounded-full bg-white/10 text-white/90 text-[11px] font-mono border border-white/15 flex items-center gap-1.5">
-                    <span>💸</span>
-                    <span>100% Bebas Akses</span>
-                  </span>
-                  <span className="px-3 py-1 rounded-full bg-amber-400/10 text-amber-300 text-[11px] font-mono border border-amber-400/20 flex items-center gap-1.5">
-                    <span>🔗</span>
-                    <span>manga.rasb.co.id</span>
-                  </span>
+                  <span className="text-stone-600">·</span>
+                  <span>Bebas Iklan Pop-up</span>
+                  <span className="text-stone-600">·</span>
+                  <span>Mode Baca Responsif</span>
                 </div>
 
-                {/* CTA Button */}
-                <div className="pt-2">
-                  <div className="inline-flex items-center gap-3.5 bg-gradient-to-r from-[#ff5a52] to-[#ff385c] group-hover:from-[#ff4238] group-hover:to-[#e02447] text-white font-bold text-xs sm:text-sm pl-6 pr-2.5 py-2.5 rounded-full shadow-xl shadow-rose-600/30 transition-all group-hover:scale-105 active:scale-95">
-                    <span>Mulai Baca Manga Sekarang</span>
-                    <span className="w-8 h-8 rounded-full bg-white text-[#151514] flex items-center justify-center font-black text-sm shadow-sm group-hover:rotate-12 transition-transform">
-                      ↗
-                    </span>
+                {/* Solid Flat Button */}
+                <div className="pt-3">
+                  <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-[#151514] font-bold text-xs sm:text-sm hover:bg-stone-200 transition-transform duration-200 group-hover:translate-x-1">
+                    <span>Buka Reader Manga</span>
+                    <span aria-hidden="true">→</span>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: 3D Manga Preview Card Mockup */}
+              {/* Right Column: Editorial Manga Volumes Showcase */}
               <div className="hidden sm:flex items-center justify-center lg:justify-end">
-                <div className="relative w-72 sm:w-80 h-52 sm:h-56 rounded-2xl bg-gradient-to-br from-[#1a1d24] to-[#0e1014] border border-white/20 p-3 shadow-2xl flex flex-col justify-between overflow-hidden group-hover:border-rose-400/50 transition-colors">
-                  {/* Comic Action Sound Effect Watermark */}
-                  <div className="absolute right-3 top-2 text-3xl font-black text-white/10 select-none font-mono">
-                    ドドド
-                  </div>
-
-                  {/* Top Bar of Mockup */}
-                  <div className="flex items-center justify-between z-10">
-                    <span className="px-2 py-0.5 rounded-md bg-rose-500 text-white font-mono font-bold text-[9px] uppercase tracking-wider">
-                      CHAPTER TERBARU
-                    </span>
-                    <span className="text-[10px] font-mono text-amber-300 flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded-md border border-white/10">
-                      <span>★ 4.9</span>
-                      <span className="text-white/60">• Populer</span>
-                    </span>
-                  </div>
-
-                  {/* Mockup Middle Content: Manga Covers Thumbnail Strip */}
-                  <div className="grid grid-cols-3 gap-2 my-auto z-10">
-                    <div className="h-24 rounded-xl overflow-hidden border border-white/15 shadow-md relative group-hover:scale-105 transition-transform">
-                      <img
-                        src="https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=400&q=80"
-                        alt="Manga 1"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] font-bold text-white text-center py-0.5">
-                        Shonen
-                      </div>
-                    </div>
-                    <div className="h-24 rounded-xl overflow-hidden border border-rose-400/40 shadow-lg relative -translate-y-1 group-hover:scale-105 transition-transform">
-                      <img
-                        src="https://images.unsplash.com/photo-1618336753974-aae8e04506aa?auto=format&fit=crop&w=400&q=80"
-                        alt="Manga 2"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
-                      <div className="absolute bottom-0 inset-x-0 bg-rose-600/90 text-[8px] font-bold text-white text-center py-0.5">
-                        Action
-                      </div>
-                    </div>
-                    <div className="h-24 rounded-xl overflow-hidden border border-white/15 shadow-md relative group-hover:scale-105 transition-transform">
-                      <img
-                        src="https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=400&q=80"
-                        alt="Manga 3"
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] font-bold text-white text-center py-0.5">
-                        Fantasy
-                      </div>
+                <div className="relative w-80 h-56 flex items-center justify-center">
+                  {/* Volume 1 (Left tilted) */}
+                  <div className="absolute left-3 w-36 h-48 rounded-xl overflow-hidden shadow-2xl -rotate-6 transition-transform duration-300 group-hover:-rotate-8 group-hover:-translate-x-1 border border-white/10 bg-[#1c1d22]">
+                    <img
+                      src="https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=400&q=80"
+                      alt="Manga Shonen Edition"
+                      className="w-full h-full object-cover grayscale contrast-125"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-2.5">
+                      <span className="text-[10px] text-stone-400 uppercase tracking-widest font-mono">Vol. 01</span>
+                      <span className="text-xs font-bold text-white leading-tight">Shonen Chronicle</span>
                     </div>
                   </div>
 
-                  {/* Mockup Bottom Status Bar */}
-                  <div className="flex items-center justify-between text-[10px] font-mono text-white/70 z-10 pt-1 border-t border-white/10">
-                    <span className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                      <span>manga.rasb.co.id</span>
-                    </span>
-                    <span className="text-rose-400 font-bold group-hover:underline">
-                      Buka Reader &rarr;
-                    </span>
+                  {/* Volume 2 (Center / Hero) */}
+                  <div className="relative z-10 w-40 h-52 rounded-xl overflow-hidden shadow-2xl transition-transform duration-300 group-hover:scale-105 border border-white/15 bg-[#22242a]">
+                    <img
+                      src="https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=400&q=80"
+                      alt="Manga Featured Selection"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-3">
+                      <span className="text-[10px] text-rose-400 uppercase tracking-widest font-mono font-bold">Terbaru</span>
+                      <span className="text-sm font-black text-white leading-tight">Weekly Chapter</span>
+                    </div>
+                  </div>
+
+                  {/* Volume 3 (Right tilted) */}
+                  <div className="absolute right-3 w-36 h-48 rounded-xl overflow-hidden shadow-2xl rotate-6 transition-transform duration-300 group-hover:rotate-8 group-hover:translate-x-1 border border-white/10 bg-[#1c1d22]">
+                    <img
+                      src="https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=400&q=80"
+                      alt="Manga Fantasy Edition"
+                      className="w-full h-full object-cover grayscale contrast-125"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-2.5">
+                      <span className="text-[10px] text-stone-400 uppercase tracking-widest font-mono">Archive</span>
+                      <span className="text-xs font-bold text-white leading-tight">Fantasy Realm</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
 
           {/* Search & Visual Category Image Cards */}
           <section id="katalog" className="space-y-6 mb-9 scroll-mt-6" aria-label="Filter dan pencarian kategori">
