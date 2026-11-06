@@ -99,6 +99,19 @@ export default function App() {
   const [digitalFilter, setDigitalFilter] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // 3D Hero Carousel State (3 Slides: Gadget & Sepeda, Web & Mobile Apps, Affiliate)
+  const [heroSlide, setHeroSlide] = useState<number>(0);
+  const [isHeroPaused, setIsHeroPaused] = useState<boolean>(false);
+  const [heroTilt, setHeroTilt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (isHeroPaused || viewMode !== "store") return;
+    const timer = setInterval(() => {
+      setHeroSlide((prev) => (prev + 1) % 3);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [isHeroPaused, viewMode]);
+
   // Cart State (Persisted in localStorage)
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
@@ -548,9 +561,22 @@ export default function App() {
           <div className="mb-10">
             {/* Outer White Architectural Frame */}
             <div className="bg-white rounded-[32px] sm:rounded-[42px] p-3 sm:p-4 shadow-2xl border border-[#ddd9d2]/80">
-              {/* Inner Dark Studio Canvas */}
-              <div className="relative rounded-[24px] sm:rounded-[30px] overflow-hidden bg-[#18191b] min-h-[540px] sm:min-h-[620px] flex flex-col justify-between select-none">
-                
+              {/* Inner Dark Studio Canvas with 3D Mouse Perspective & Auto-Play Pause on Hover */}
+              <div
+                onMouseEnter={() => setIsHeroPaused(true)}
+                onMouseLeave={() => {
+                  setIsHeroPaused(false);
+                  setHeroTilt({ x: 0, y: 0 });
+                }}
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const nx = (e.clientX - rect.left) / rect.width - 0.5;
+                  const ny = (e.clientY - rect.top) / rect.height - 0.5;
+                  setHeroTilt({ x: nx * 12, y: -ny * 10 });
+                }}
+                className="relative rounded-[24px] sm:rounded-[30px] overflow-hidden bg-[#18191b] min-h-[580px] sm:min-h-[650px] flex flex-col justify-between select-none"
+                style={{ perspective: "1200px" }}
+              >
                 {/* 1. BACKGROUND: Dark Vertical Architectural Wall Panels */}
                 <div className="absolute inset-0 grid grid-cols-4 sm:grid-cols-8 pointer-events-none">
                   {Array.from({ length: 8 }).map((_, idx) => (
@@ -563,12 +589,16 @@ export default function App() {
                   ))}
                 </div>
 
-                {/* Ambient Warm Studio Spotlight Glows */}
+                {/* Dynamic Ambient Studio Spotlight Glow per Slide */}
                 <div
-                  className="absolute inset-0 pointer-events-none"
+                  className="absolute inset-0 pointer-events-none transition-all duration-700"
                   style={{
                     background:
-                      "radial-gradient(circle at 78% 36%, rgba(255, 190, 110, 0.16) 0%, rgba(255, 160, 70, 0.05) 28%, transparent 60%), radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.05) 0%, transparent 55%)",
+                      heroSlide === 0
+                        ? "radial-gradient(circle at 78% 36%, rgba(255, 190, 110, 0.18) 0%, rgba(255, 90, 82, 0.08) 32%, transparent 62%), radial-gradient(circle at 30% 60%, rgba(16, 185, 129, 0.09) 0%, transparent 55%)"
+                        : heroSlide === 1
+                        ? "radial-gradient(circle at 75% 36%, rgba(56, 189, 248, 0.18) 0%, rgba(99, 102, 241, 0.12) 35%, transparent 65%), radial-gradient(circle at 25% 55%, rgba(168, 85, 247, 0.10) 0%, transparent 55%)"
+                        : "radial-gradient(circle at 78% 36%, rgba(255, 140, 66, 0.20) 0%, rgba(238, 77, 45, 0.10) 35%, transparent 62%), radial-gradient(circle at 30% 55%, rgba(250, 204, 21, 0.10) 0%, transparent 55%)",
                   }}
                 />
 
@@ -853,76 +883,169 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 6. CENTER HERO HEADLINE, SUBTITLE & CORAL PILL CTA */}
-                <div className="relative z-20 px-5 sm:px-10 pt-16 sm:pt-12 pb-52 sm:pb-60 text-center max-w-3xl mx-auto my-auto">
-                  <motion.h1
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className="text-3xl sm:text-5xl lg:text-[52px] font-extrabold text-white tracking-tight leading-[1.14]"
-                    style={{ fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" }}
+                {/* 6. 3-SLIDE 3D ANIMATED CAROUSEL CONTENT & CONTROLS */}
+                <div className="relative z-20 px-5 sm:px-10 pt-16 sm:pt-10 pb-56 sm:pb-64 text-center max-w-4xl mx-auto my-auto">
+                  {/* Prev / Next Floating Side Arrows (Desktop) */}
+                  <button
+                    onClick={() => setHeroSlide((prev) => (prev + 2) % 3)}
+                    aria-label="Slide Sebelumnya"
+                    className="hidden md:flex absolute left-0 top-1/3 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white items-center justify-center backdrop-blur-md transition-all hover:scale-110"
                   >
-                    Modern Setup &amp; Digital
-                    <br />
-                    for Minimalist Lovers
-                  </motion.h1>
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => setHeroSlide((prev) => (prev + 1) % 3)}
+                    aria-label="Slide Selanjutnya"
+                    className="hidden md:flex absolute right-0 top-1/3 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white items-center justify-center backdrop-blur-md transition-all hover:scale-110"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
 
-                  <motion.p
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45, delay: 0.08 }}
-                    className="mt-4 text-xs sm:text-sm text-white/75 max-w-md mx-auto leading-relaxed font-sans"
-                  >
-                    {storeSettings.store_announcement ||
-                      "Experience the ultimate relaxation and productivity with our curated collection of serene minimalist hardware & digital designs"}
-                  </motion.p>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 14 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.15 }}
-                    className="mt-7 flex items-center justify-center gap-3"
-                  >
-                    <a
-                      href="#katalog"
-                      className="inline-flex items-center gap-3.5 bg-[#ff5a52] hover:bg-[#ff4238] text-white font-semibold text-xs sm:text-sm pl-6 pr-2 py-2 rounded-full shadow-xl shadow-[#ff5a52]/30 transition-all hover:scale-105 active:scale-95 font-sans"
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={heroSlide}
+                      initial={{ opacity: 0, y: 18, rotateX: -10 }}
+                      animate={{ opacity: 1, y: 0, rotateX: 0 }}
+                      exit={{ opacity: 0, y: -16, rotateX: 10 }}
+                      transition={{ duration: 0.42, ease: "easeOut" }}
                     >
-                      <span>Explore More</span>
-                      <span className="w-8 h-8 rounded-full bg-white text-[#151514] flex items-center justify-center shadow-xs">
-                        <svg
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <line x1="7" y1="17" x2="17" y2="7" />
-                          <polyline points="7 7 17 7 17 17" />
-                        </svg>
-                      </span>
-                    </a>
-                  </motion.div>
+                      {/* Category Eyebrow Pill */}
+                      <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/10 border border-white/15 backdrop-blur-md text-[10px] sm:text-[11px] font-mono font-bold tracking-widest uppercase text-white/90 mb-3.5">
+                        <span
+                          className={`w-2 h-2 rounded-full animate-pulse ${
+                            heroSlide === 0
+                              ? "bg-emerald-400"
+                              : heroSlide === 1
+                              ? "bg-sky-400"
+                              : "bg-amber-400"
+                          }`}
+                        />
+                        <span>
+                          {heroSlide === 0
+                            ? "01 • AKSESORIS GADGET & SEPEDA"
+                            : heroSlide === 1
+                            ? "02 • PEMBUATAN WEBSITE & MOBILE APPS"
+                            : "03 • KATALOG PRODUK AFFILIATE PILIHAN"}
+                        </span>
+                      </div>
 
-                  {/* Mobile Quick Navigation Links */}
-                  <div className="mt-5 flex lg:hidden items-center justify-center gap-4 text-[11px] font-semibold text-white/75">
-                    <a href="#katalog" className="hover:text-white underline underline-offset-4">Katalog</a>
-                    <span>•</span>
-                    <button onClick={() => navigateTo("orders", "/orders")} className="hover:text-white">Riwayat Pesanan</button>
-                    <span>•</span>
-                    <button onClick={() => navigateTo("profile", "/profile")} className="hover:text-white">
-                      {currentUser ? currentUser.name.split(" ")[0] : "Akun"}
-                    </button>
+                      {/* Main Headline */}
+                      <h1
+                        className="text-2xl sm:text-5xl lg:text-[50px] font-extrabold text-white tracking-tight leading-[1.14]"
+                        style={{
+                          fontFamily:
+                            "system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                        }}
+                      >
+                        {heroSlide === 0 ? (
+                          <>
+                            Aksesoris Gadget &amp; Sepeda
+                            <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-amber-100 to-emerald-200">
+                              for Minimalist Riders
+                            </span>
+                          </>
+                        ) : heroSlide === 1 ? (
+                          <>
+                            Pembuatan Website &amp;
+                            <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-200 via-white to-indigo-200">
+                              Mobile Apps Modern
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            Kurasi Produk Affiliate
+                            <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-white to-rose-200">
+                              Terbaik &amp; Terverifikasi
+                            </span>
+                          </>
+                        )}
+                      </h1>
+
+                      {/* Subtitle */}
+                      <p className="mt-3.5 text-xs sm:text-sm text-white/75 max-w-lg mx-auto leading-relaxed font-sans">
+                        {heroSlide === 0
+                          ? "Perlengkapan setup gadget presisi, mounting sepeda carbon, cyclocomputer GPS, dan lampu pintar untuk mobilitas harian Anda."
+                          : heroSlide === 1
+                          ? "Jasa pengembangan website berkinerja tinggi, aplikasi iOS & Android custom, serta koleksi source code & UI/UX kit siap pakai."
+                          : "Rekomendasi produk pilihan dari Shopee, TikTok Shop, Tokopedia & Lazada dengan harga promo langsung menuju toko resmi."}
+                      </p>
+
+                      {/* Coral-Red Pill CTA with White Circle Arrow */}
+                      <div className="mt-6 flex items-center justify-center gap-3">
+                        <a
+                          href="#katalog"
+                          onClick={() => {
+                            if (heroSlide === 0) {
+                              setDigitalFilter("false");
+                            } else if (heroSlide === 1) {
+                              setDigitalFilter("true");
+                            } else {
+                              setDigitalFilter("");
+                            }
+                          }}
+                          className="inline-flex items-center gap-3.5 bg-[#ff5a52] hover:bg-[#ff4238] text-white font-semibold text-xs sm:text-sm pl-6 pr-2 py-2 rounded-full shadow-xl shadow-[#ff5a52]/30 transition-all hover:scale-105 active:scale-95 font-sans"
+                        >
+                          <span>
+                            {heroSlide === 0
+                              ? "Explore Gadget & Sepeda"
+                              : heroSlide === 1
+                              ? "Explore Web & Mobile Apps"
+                              : "Explore Katalog Affiliate"}
+                          </span>
+                          <span className="w-8 h-8 rounded-full bg-white text-[#151514] flex items-center justify-center shadow-xs">
+                            <svg
+                              className="w-4 h-4"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <line x1="7" y1="17" x2="17" y2="7" />
+                              <polyline points="7 7 17 7 17 17" />
+                            </svg>
+                          </span>
+                        </a>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {/* 3-Slide Interactive Carousel Switcher Pills */}
+                  <div className="mt-6 flex flex-wrap items-center justify-center gap-2 z-30 relative">
+                    {[
+                      { idx: 0, label: "Gadget & Sepeda", icon: "🚲" },
+                      { idx: 1, label: "Website & Mobile Apps", icon: "💻" },
+                      { idx: 2, label: "Affiliate Pilihan", icon: "🛍️" },
+                    ].map((tab) => (
+                      <button
+                        key={tab.idx}
+                        onClick={() => setHeroSlide(tab.idx)}
+                        className={`px-3.5 py-1.5 rounded-full text-[11px] font-semibold transition-all flex items-center gap-1.5 border ${
+                          heroSlide === tab.idx
+                            ? "bg-white text-[#151514] border-white shadow-lg scale-105"
+                            : "bg-white/10 text-white/75 border-white/15 hover:bg-white/20 hover:text-white"
+                        }`}
+                      >
+                        <span>{tab.icon}</span>
+                        <span>{tab.label}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {/* 7. BOTTOM ARCHITECTURAL STUDIO SCENE: Plants, Minimalist Dark Sofa & Wooden Floor */}
+                {/* 7. BOTTOM 3D ANIMATED STAGE SCENE PER SLIDE + ARCHITECTURAL ROOM */}
                 <div className="absolute inset-x-0 bottom-0 z-10 pointer-events-none flex flex-col justify-end">
                   <div className="relative w-full max-w-5xl mx-auto px-4 sm:px-10 flex items-end justify-between -mb-3">
                     {/* Left Indoor Botanical Plants & Planter Pots */}
                     <div className="hidden sm:flex items-end -space-x-4 z-10">
-                      {/* Tall Fiddle Leaf Plant */}
                       <div className="flex flex-col items-center">
                         <svg className="w-28 lg:w-36 h-44 lg:h-56 -mb-4 drop-shadow-2xl" viewBox="0 0 140 220" fill="none">
                           <path d="M70 210 C68 150, 65 90, 72 30" stroke="#3f2e21" strokeWidth="3.5" strokeLinecap="round" />
@@ -935,7 +1058,6 @@ export default function App() {
                         </svg>
                         <div className="w-16 lg:w-20 h-16 lg:h-20 rounded-b-2xl rounded-t-sm bg-gradient-to-r from-[#232528] via-[#2e3136] to-[#18191b] border-t border-white/10 shadow-2xl" />
                       </div>
-                      {/* Medium Green Plant + Warm Wood Side Drum */}
                       <div className="flex items-end gap-2">
                         <div className="flex flex-col items-center">
                           <svg className="w-20 lg:w-24 h-28 lg:h-32 -mb-3 drop-shadow-xl" viewBox="0 0 100 130" fill="none">
@@ -950,38 +1072,249 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Centerpiece Minimalist Charcoal Tufted Studio Sofa */}
-                    <div className="mx-auto w-full max-w-md sm:max-w-lg lg:max-w-xl z-20 px-2">
-                      <div className="relative flex flex-col items-center">
-                        {/* Backrest Cushions */}
-                        <div className="w-[84%] flex items-end justify-center gap-2 -mb-3 z-10">
-                          <div className="w-1/2 h-14 sm:h-20 rounded-t-2xl bg-gradient-to-b from-[#35373c] via-[#282a2e] to-[#1d1e22] border-t border-white/15 shadow-lg relative">
-                            {/* Throw Pillow Left */}
-                            <div className="absolute -left-3 bottom-0 w-12 sm:w-14 h-11 sm:h-13 rounded-xl bg-gradient-to-br from-[#3e4046] to-[#222428] -rotate-6 shadow-md border-t border-white/10" />
-                          </div>
-                          <div className="w-1/2 h-16 sm:h-22 rounded-t-2xl bg-gradient-to-b from-[#383a40] via-[#2a2c30] to-[#1d1e22] border-t border-white/15 shadow-lg relative">
-                            {/* Throw Pillow Right */}
-                            <div className="absolute left-3 bottom-0 w-14 sm:w-16 h-10 sm:h-12 rounded-xl bg-gradient-to-bl from-[#42454b] to-[#24262a] rotate-3 shadow-md border-t border-white/10" />
-                          </div>
-                        </div>
+                    {/* CENTER 3D ANIMATED SHOWCASE STAGE (Changes per Slide + 3D Mouse Tilt) */}
+                    <div
+                      className="mx-auto w-full max-w-md sm:max-w-lg lg:max-w-xl z-20 px-2"
+                      style={{
+                        transform: `rotateY(${heroTilt.x}deg) rotateX(${heroTilt.y}deg)`,
+                        transformStyle: "preserve-3d",
+                        transition: "transform 0.2s ease-out",
+                      }}
+                    >
+                      <AnimatePresence mode="wait">
+                        {heroSlide === 0 ? (
+                          /* SLIDE 0: 3D AKSESORIS GADGET & SEPEDA */
+                          <motion.div
+                            key="stage-gadget-bike"
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 15 }}
+                            transition={{ duration: 0.45 }}
+                            className="relative flex flex-col items-center"
+                          >
+                            {/* Floating 3D Elements Above Sofa */}
+                            <div className="relative w-full h-36 sm:h-40 flex items-center justify-center gap-4 sm:gap-7 -mb-5 z-30">
+                              {/* 3D Spinning Carbon Bike Wheel & Rotor */}
+                              <motion.div
+                                animate={{ y: [0, -8, 0] }}
+                                transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+                                className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full border-[6px] border-zinc-800 shadow-2xl flex items-center justify-center bg-gradient-to-br from-zinc-900/80 to-black/40 backdrop-blur-xs ring-2 ring-emerald-400/50"
+                              >
+                                <motion.svg
+                                  animate={{ rotate: 360 }}
+                                  transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                                  className="w-full h-full p-1"
+                                  viewBox="0 0 100 100"
+                                >
+                                  <circle cx="50" cy="50" r="44" stroke="#34d399" strokeWidth="1.5" strokeDasharray="6 4" fill="none" />
+                                  <line x1="50" y1="6" x2="50" y2="94" stroke="#a1a1aa" strokeWidth="1.2" />
+                                  <line x1="6" y1="50" x2="94" y2="50" stroke="#a1a1aa" strokeWidth="1.2" />
+                                  <line x1="19" y1="19" x2="81" y2="81" stroke="#a1a1aa" strokeWidth="1.2" />
+                                  <line x1="81" y1="19" x2="19" y2="81" stroke="#a1a1aa" strokeWidth="1.2" />
+                                  <circle cx="50" cy="50" r="14" fill="#27272a" stroke="#e4e4e7" strokeWidth="2.5" />
+                                  <circle cx="50" cy="50" r="5" fill="#ff5a52" />
+                                </motion.svg>
+                                <span className="absolute -bottom-2.5 px-2 py-0.5 rounded-full bg-emerald-500 text-[#151514] font-mono font-black text-[9px] shadow-md">
+                                  BIKE GEAR
+                                </span>
+                              </motion.div>
 
-                        {/* Sofa Armrests + Deep Low-Profile Seat Base */}
-                        <div className="w-full flex items-end">
-                          {/* Left Armrest */}
-                          <div className="w-10 sm:w-14 h-16 sm:h-20 rounded-tl-3xl rounded-bl-xl bg-gradient-to-r from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -mr-2 z-20" />
-                          {/* Main Double Seat Cushion */}
-                          <div className="flex-1 grid grid-cols-2 gap-0.5 bg-[#141517] rounded-t-xl overflow-hidden shadow-2xl border-t border-white/10">
-                            <div className="h-14 sm:h-18 bg-gradient-to-b from-[#32343a] via-[#26282c] to-[#1b1c20] relative">
-                              <div className="absolute inset-x-4 top-2 h-[1px] bg-white/10" />
+                              {/* 3D Floating Smart Gadget / Cyclocomputer GPS Card */}
+                              <motion.div
+                                animate={{ y: [0, -12, 0], rotateZ: [-2, 2, -2] }}
+                                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                                className="w-28 sm:w-32 h-32 sm:h-36 rounded-2xl bg-gradient-to-b from-[#2a2d34] to-[#16181c] border border-white/20 p-2.5 shadow-2xl flex flex-col justify-between relative"
+                              >
+                                <div className="flex items-center justify-between text-[9px] font-mono text-emerald-400">
+                                  <span>GPS • PRO</span>
+                                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                                </div>
+                                <div className="my-auto text-center">
+                                  <div className="text-xl sm:text-2xl font-black text-white font-mono leading-none">
+                                    34.8
+                                  </div>
+                                  <div className="text-[9px] text-white/60 font-mono mt-0.5">KM/H • CAD 92</div>
+                                  <div className="mt-2 h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                    <div className="h-full w-3/4 bg-gradient-to-r from-emerald-400 to-[#ff5a52] rounded-full" />
+                                  </div>
+                                </div>
+                                <div className="text-[9px] font-mono text-white/80 bg-white/5 rounded-lg py-1 text-center border border-white/10">
+                                  MAGSAFE MOUNT
+                                </div>
+                              </motion.div>
+
+                              {/* 3D Floating Wireless ANC Headphones / Audio Pod */}
+                              <motion.div
+                                animate={{ y: [0, -9, 0], rotateZ: [3, -2, 3] }}
+                                transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                                className="w-20 h-24 sm:w-24 sm:h-28 rounded-2xl bg-gradient-to-br from-zinc-800 via-zinc-900 to-black border border-white/15 p-2.5 shadow-2xl flex flex-col items-center justify-center gap-1.5"
+                              >
+                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-amber-400/15 border border-amber-300/30 flex items-center justify-center text-lg sm:text-xl">
+                                  🎧
+                                </div>
+                                <span className="text-[9px] font-mono font-bold text-amber-200">GADGET PRO</span>
+                                <span className="text-[8px] text-white/50">ANC • USB-C</span>
+                              </motion.div>
                             </div>
-                            <div className="h-14 sm:h-18 bg-gradient-to-b from-[#34363c] via-[#26282c] to-[#1b1c20] relative">
-                              <div className="absolute inset-x-4 top-2 h-[1px] bg-white/10" />
+
+                            {/* Minimalist Studio Sofa Base */}
+                            <div className="w-full flex items-end">
+                              <div className="w-10 sm:w-14 h-14 sm:h-16 rounded-tl-3xl rounded-bl-xl bg-gradient-to-r from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -mr-2 z-20" />
+                              <div className="flex-1 grid grid-cols-2 gap-0.5 bg-[#141517] rounded-t-xl overflow-hidden shadow-2xl border-t border-white/10">
+                                <div className="h-12 sm:h-15 bg-gradient-to-b from-[#32343a] via-[#26282c] to-[#1b1c20]" />
+                                <div className="h-12 sm:h-15 bg-gradient-to-b from-[#34363c] via-[#26282c] to-[#1b1c20]" />
+                              </div>
+                              <div className="w-10 sm:w-14 h-14 sm:h-16 rounded-tr-3xl rounded-br-xl bg-gradient-to-l from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -ml-2 z-20" />
                             </div>
-                          </div>
-                          {/* Right Armrest */}
-                          <div className="w-10 sm:w-14 h-16 sm:h-20 rounded-tr-3xl rounded-br-xl bg-gradient-to-l from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -ml-2 z-20" />
-                        </div>
-                      </div>
+                          </motion.div>
+                        ) : heroSlide === 1 ? (
+                          /* SLIDE 1: 3D PEMBUATAN WEBSITE & MOBILE APPS */
+                          <motion.div
+                            key="stage-web-mobile"
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 15 }}
+                            transition={{ duration: 0.45 }}
+                            className="relative flex flex-col items-center"
+                          >
+                            <div className="relative w-full h-36 sm:h-40 flex items-center justify-center gap-3 sm:gap-5 -mb-5 z-30">
+                              {/* 3D Isometric Web Browser Window */}
+                              <motion.div
+                                animate={{ y: [0, -10, 0], rotateY: [-6, 6, -6] }}
+                                transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+                                className="w-44 sm:w-56 h-28 sm:h-34 rounded-2xl bg-gradient-to-br from-[#1e293b]/95 via-[#0f172a]/95 to-[#1e1b4b]/95 border border-sky-400/40 p-3 shadow-2xl flex flex-col justify-between backdrop-blur-md"
+                              >
+                                <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                                  <div className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full bg-rose-400" />
+                                    <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                  </div>
+                                  <span className="text-[8px] font-mono text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-400/20">
+                                    https://web-studio.app
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-1.5 my-auto py-1">
+                                  <div className="col-span-2 bg-white/5 rounded-lg p-1.5 border border-white/10">
+                                    <div className="w-2/3 h-1.5 bg-sky-400/80 rounded mb-1" />
+                                    <div className="w-full h-1 bg-white/30 rounded mb-1" />
+                                    <div className="w-4/5 h-1 bg-white/20 rounded" />
+                                  </div>
+                                  <div className="bg-indigo-500/20 rounded-lg border border-indigo-400/30 flex items-center justify-center text-[10px] font-mono font-bold text-indigo-200">
+                                    &lt;/&gt;
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-between text-[8px] font-mono text-white/70">
+                                  <span>FULLSTACK WEB</span>
+                                  <span className="text-emerald-400 font-bold">● 100% SCORE</span>
+                                </div>
+                              </motion.div>
+
+                              {/* 3D Floating Mobile App Phone Mockup */}
+                              <motion.div
+                                animate={{ y: [0, -14, 0], rotateZ: [4, -2, 4] }}
+                                transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                                className="w-20 sm:w-24 h-32 sm:h-36 rounded-[20px] bg-gradient-to-b from-[#1e1b4b] to-[#090d16] border-2 border-indigo-400/50 p-2 shadow-2xl flex flex-col justify-between relative"
+                              >
+                                <div className="w-8 h-1 bg-white/30 rounded-full mx-auto" />
+                                <div className="my-auto space-y-1.5">
+                                  <div className="h-8 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-500 p-1.5 flex items-center justify-center text-[9px] font-bold text-white shadow-md">
+                                    iOS &amp; APK
+                                  </div>
+                                  <div className="h-5 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center text-[8px] font-mono text-sky-200">
+                                    UI/UX 3D
+                                  </div>
+                                </div>
+                                <div className="w-6 h-0.5 bg-white/40 rounded-full mx-auto" />
+                              </motion.div>
+                            </div>
+
+                            {/* Minimalist Studio Sofa Base */}
+                            <div className="w-full flex items-end">
+                              <div className="w-10 sm:w-14 h-14 sm:h-16 rounded-tl-3xl rounded-bl-xl bg-gradient-to-r from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -mr-2 z-20" />
+                              <div className="flex-1 grid grid-cols-2 gap-0.5 bg-[#141517] rounded-t-xl overflow-hidden shadow-2xl border-t border-white/10">
+                                <div className="h-12 sm:h-15 bg-gradient-to-b from-[#32343a] via-[#26282c] to-[#1b1c20]" />
+                                <div className="h-12 sm:h-15 bg-gradient-to-b from-[#34363c] via-[#26282c] to-[#1b1c20]" />
+                              </div>
+                              <div className="w-10 sm:w-14 h-14 sm:h-16 rounded-tr-3xl rounded-br-xl bg-gradient-to-l from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -ml-2 z-20" />
+                            </div>
+                          </motion.div>
+                        ) : (
+                          /* SLIDE 2: 3D MULTI-PLATFORM AFFILIATE SHOWCASE */
+                          <motion.div
+                            key="stage-affiliate"
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 15 }}
+                            transition={{ duration: 0.45 }}
+                            className="relative flex flex-col items-center"
+                          >
+                            <div className="relative w-full h-36 sm:h-40 flex items-center justify-center gap-2.5 sm:gap-4 -mb-5 z-30">
+                              {/* Shopee 3D Floating Card */}
+                              <motion.div
+                                animate={{ y: [0, -10, 0], rotateZ: [-6, -2, -6] }}
+                                transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
+                                className="w-22 sm:w-26 h-26 sm:h-30 rounded-2xl bg-gradient-to-br from-[#ee4d2d] to-[#b92b10] p-2.5 shadow-2xl border border-white/25 flex flex-col justify-between text-white"
+                              >
+                                <span className="text-[9px] font-mono font-bold bg-black/20 px-1.5 py-0.5 rounded self-start">
+                                  SHOPEE
+                                </span>
+                                <div className="text-xl sm:text-2xl font-black text-center">🛍️</div>
+                                <span className="text-[8px] font-bold text-center bg-white text-[#ee4d2d] rounded-full py-0.5">
+                                  STAR+ DEAL
+                                </span>
+                              </motion.div>
+
+                              {/* Central Verified 3D Affiliate Hub */}
+                              <motion.div
+                                animate={{ y: [0, -14, 0], scale: [1, 1.04, 1] }}
+                                transition={{ duration: 3.8, repeat: Infinity, ease: "easeInOut" }}
+                                className="w-32 sm:w-36 h-30 sm:h-34 rounded-2xl bg-gradient-to-b from-[#2b2d33] to-[#17181c] p-3 shadow-2xl border border-amber-300/40 flex flex-col justify-between text-center relative"
+                              >
+                                <span className="text-[9px] font-mono font-bold text-amber-300">
+                                  ★ 4.9 CURATED
+                                </span>
+                                <div className="my-auto">
+                                  <div className="text-xs sm:text-sm font-black text-white">
+                                    MULTI-STORE
+                                  </div>
+                                  <div className="text-[9px] text-white/60 mt-0.5">
+                                    TikTok • Tokopedia
+                                  </div>
+                                </div>
+                                <span className="text-[9px] font-mono font-bold bg-gradient-to-r from-emerald-400 to-teal-400 text-[#151514] rounded-lg py-1">
+                                  HARGA TERBAIK
+                                </span>
+                              </motion.div>
+
+                              {/* TikTok & Tokopedia 3D Floating Card */}
+                              <motion.div
+                                animate={{ y: [0, -10, 0], rotateZ: [6, 2, 6] }}
+                                transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 0.25 }}
+                                className="w-22 sm:w-26 h-26 sm:h-30 rounded-2xl bg-gradient-to-br from-[#00aa5b] to-[#046c3c] p-2.5 shadow-2xl border border-white/25 flex flex-col justify-between text-white"
+                              >
+                                <span className="text-[9px] font-mono font-bold bg-black/20 px-1.5 py-0.5 rounded self-start">
+                                  OFFICIAL
+                                </span>
+                                <div className="text-xl sm:text-2xl font-black text-center">⚡</div>
+                                <span className="text-[8px] font-bold text-center bg-white text-[#00aa5b] rounded-full py-0.5">
+                                  LINK RESMI
+                                </span>
+                              </motion.div>
+                            </div>
+
+                            {/* Minimalist Studio Sofa Base */}
+                            <div className="w-full flex items-end">
+                              <div className="w-10 sm:w-14 h-14 sm:h-16 rounded-tl-3xl rounded-bl-xl bg-gradient-to-r from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -mr-2 z-20" />
+                              <div className="flex-1 grid grid-cols-2 gap-0.5 bg-[#141517] rounded-t-xl overflow-hidden shadow-2xl border-t border-white/10">
+                                <div className="h-12 sm:h-15 bg-gradient-to-b from-[#32343a] via-[#26282c] to-[#1b1c20]" />
+                                <div className="h-12 sm:h-15 bg-gradient-to-b from-[#34363c] via-[#26282c] to-[#1b1c20]" />
+                              </div>
+                              <div className="w-10 sm:w-14 h-14 sm:h-16 rounded-tr-3xl rounded-br-xl bg-gradient-to-l from-[#24262a] via-[#313338] to-[#202226] border-t border-white/10 shadow-2xl -ml-2 z-20" />
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     {/* Right Indoor Plant & Warm Wood Ottoman */}
@@ -1008,7 +1341,6 @@ export default function App() {
                         "linear-gradient(180deg, #3d2817 0%, #5c3d24 35%, #785130 70%, #4a301b 100%)",
                     }}
                   >
-                    {/* Perspective Wood Plank Lines */}
                     <div
                       className="absolute inset-0 opacity-35"
                       style={{
@@ -1016,7 +1348,6 @@ export default function App() {
                           "repeating-linear-gradient(90deg, transparent, transparent 48px, rgba(0,0,0,0.45) 48px, rgba(0,0,0,0.45) 50px)",
                       }}
                     />
-                    {/* Floor Ambient Shadow under Sofa */}
                     <div className="absolute inset-x-1/4 top-0 h-5 bg-black/60 blur-md" />
                   </div>
                 </div>
