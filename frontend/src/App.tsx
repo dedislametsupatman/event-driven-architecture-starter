@@ -1350,7 +1350,7 @@ export default function App() {
                 )}
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#ebe9e5] border border-[#ddd9d2] text-[11px] font-mono text-[#151514]">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                  <span>ENCORE CLOUD MICROSERVICES</span>
+                  <span>LAYANAN SISTEM AKTIF 24/7</span>
                 </div>
                 <p className="text-[11px] text-[#7a7469]">
                   Didukung enkripsi TLS &amp; validasi pembayaran otomatis.
@@ -1361,7 +1361,7 @@ export default function App() {
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#7a7469] font-mono">
             <p>© {new Date().getFullYear()} {storeSettings.store_name || "Supatman Store"}. All Rights Reserved.</p>
-            <p className="text-[11px]">Crafted with Go (Encore.dev) &amp; React 18 + Tailwind CSS</p>
+            <p className="text-[11px]">Belanja Aman &amp; Terverifikasi Otomatis</p>
           </div>
         </div>
       </footer>

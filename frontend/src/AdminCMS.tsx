@@ -2524,7 +2524,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                               Klik untuk Upload Foto dari Komputer
                             </p>
                             <p className="text-[11px] text-slate-500 mt-1">
-                              File otomatis tersimpan di Encore Object Storage Bucket (PNG, JPG, WebP max 10MB)
+                              File otomatis tersimpan di Cloud Storage Bucket (PNG, JPG, WebP max 10MB)
                             </p>
                           </div>
                         )}
