@@ -1377,9 +1377,174 @@ export default function App() {
             </div>
           </div>
 
-          {/* Search & Filter Bar (Segmented Control, Search Input & Category Tags) */}
-          <section id="katalog" className="space-y-4 mb-8 scroll-mt-6" aria-label="Filter dan pencarian kategori">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Search & Visual Category Image Cards */}
+          <section id="katalog" className="space-y-6 mb-9 scroll-mt-6" aria-label="Filter dan pencarian kategori">
+            {/* Visual Category Image Cards Grid */}
+            {categories.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3.5">
+                  <div>
+                    <h2 className="text-sm sm:text-base font-black text-[#151514] uppercase tracking-tight">
+                      Jelajahi Kategori Pilihan
+                    </h2>
+                    <p className="text-[11px] text-[#78716c]">
+                      Pilih kategori untuk memfilter koleksi produk fisik, layanan web/mobile apps, dan affiliate
+                    </p>
+                  </div>
+                  {(selectedCategory !== "" || digitalFilter !== "") && (
+                    <button
+                      onClick={() => {
+                        setSelectedCategory("");
+                        setDigitalFilter("");
+                      }}
+                      className="text-xs font-bold text-[#ff5a52] hover:underline flex items-center gap-1"
+                    >
+                      <span>Lihat Semua</span>
+                      <XMarkIcon className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {categories.map((c, idx) => {
+                    const isSelected = selectedCategory === c.slug;
+                    const slugLower = (c.slug + " " + c.name).toLowerCase();
+
+                    // Curated visual image & metadata per category
+                    let catImage =
+                      "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?auto=format&fit=crop&w=800&q=80";
+                    let catBadge = "KOLEKSI PILIHAN";
+                    let catSubtitle = "Kurasi produk berkualitas tinggi & bergaransi";
+
+                    if (
+                      slugLower.includes("physical") ||
+                      slugLower.includes("sepeda") ||
+                      slugLower.includes("bike") ||
+                      slugLower.includes("fisik")
+                    ) {
+                      catImage =
+                        "https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80";
+                      catBadge = "BIKE & GEAR";
+                      catSubtitle = "Aksesoris sepeda, mounting carbon & perlengkapan gowes";
+                    } else if (
+                      slugLower.includes("gadget") ||
+                      slugLower.includes("electronic") ||
+                      slugLower.includes("setup")
+                    ) {
+                      catImage =
+                        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80";
+                      catBadge = "GADGET ACCESSORIES";
+                      catSubtitle = "Aksesoris gadget minimalis, desk setup & perangkat pintar";
+                    } else if (
+                      slugLower.includes("digital") ||
+                      slugLower.includes("web") ||
+                      slugLower.includes("app") ||
+                      slugLower.includes("software")
+                    ) {
+                      catImage =
+                        "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80";
+                      catBadge = "WEB & MOBILE APPS";
+                      catSubtitle = "Jasa pembuatan website, aplikasi iOS/Android & sistem";
+                    } else if (
+                      slugLower.includes("ebook") ||
+                      slugLower.includes("template") ||
+                      slugLower.includes("affiliate")
+                    ) {
+                      catImage =
+                        "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80";
+                      catBadge = "AFFILIATE & TEMPLATES";
+                      catSubtitle = "Rekomendasi affiliate resmi, UI/UX kit & e-book eksklusif";
+                    } else {
+                      const fallbackImages = [
+                        "https://images.unsplash.com/photo-1485965120184-e220f721d03e?auto=format&fit=crop&w=800&q=80",
+                        "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80",
+                        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80",
+                        "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=800&q=80",
+                      ];
+                      catImage = fallbackImages[idx % fallbackImages.length];
+                    }
+
+                    return (
+                      <motion.button
+                        key={c.id}
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setSelectedCategory(isSelected ? "" : c.slug)}
+                        className={`group relative h-44 sm:h-48 rounded-3xl overflow-hidden text-left transition-all duration-300 border ${
+                          isSelected
+                            ? "ring-3 ring-[#ff5a52] border-[#ff5a52] shadow-xl"
+                            : "border-[#ddd9d2] shadow-sm hover:shadow-xl"
+                        }`}
+                      >
+                        {/* Background Category Image */}
+                        <img
+                          src={catImage}
+                          alt={c.name}
+                          loading="lazy"
+                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+
+                        {/* Dark Studio Gradient Overlay */}
+                        <div
+                          className={`absolute inset-0 transition-opacity duration-300 ${
+                            isSelected
+                              ? "bg-gradient-to-t from-[#151514] via-[#151514]/65 to-[#ff5a52]/25"
+                              : "bg-gradient-to-t from-[#151514]/95 via-[#151514]/45 to-black/15 group-hover:from-[#151514]"
+                          }`}
+                        />
+
+                        {/* Top Bar: Badge & Circle Arrow */}
+                        <div className="relative z-10 p-4 flex items-center justify-between">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider backdrop-blur-md border ${
+                              isSelected
+                                ? "bg-[#ff5a52] text-white border-[#ff5a52]"
+                                : "bg-black/45 text-white/90 border-white/15"
+                            }`}
+                          >
+                            {isSelected ? "✓ KATEGORI AKTIF" : catBadge}
+                          </span>
+
+                          <span
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                              isSelected
+                                ? "bg-[#ff5a52] text-white rotate-45"
+                                : "bg-white/90 text-[#151514] group-hover:bg-[#ff5a52] group-hover:text-white group-hover:rotate-12"
+                            }`}
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <line x1="7" y1="17" x2="17" y2="7" />
+                              <polyline points="7 7 17 7 17 17" />
+                            </svg>
+                          </span>
+                        </div>
+
+                        {/* Bottom Content: Category Name & Subtitle */}
+                        <div className="absolute inset-x-0 bottom-0 z-10 p-4">
+                          <h3 className="text-base sm:text-lg font-extrabold text-white tracking-tight leading-snug group-hover:text-amber-100 transition-colors">
+                            {c.name}
+                          </h3>
+                          <p className="text-[11px] text-white/75 line-clamp-1 mt-0.5 font-sans">
+                            {catSubtitle}
+                          </p>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Filter Segmented Control & Search Input Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2">
               <div className="inline-flex p-1 bg-[#ddd9d2]/60 rounded-2xl border border-[#ddd9d2] self-start">
                 <button
                   onClick={() => {
@@ -1444,25 +1609,6 @@ export default function App() {
                 )}
               </div>
             </div>
-
-            {/* Category Pills */}
-            {categories.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {categories.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => setSelectedCategory(selectedCategory === c.slug ? "" : c.slug)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all tap-effect ${
-                      selectedCategory === c.slug
-                        ? "bg-[#151514] text-[#ebe9e5] shadow-xs"
-                        : "bg-white text-[#57534e] hover:text-[#151514] border border-[#ddd9d2]"
-                    }`}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            )}
           </section>
 
           {/* Product Grid */}
