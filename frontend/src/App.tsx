@@ -1460,8 +1460,17 @@ export default function App() {
             onClick={() => navigateTo("manga", "/manga")}
             className="group relative w-full mb-10 rounded-[28px] sm:rounded-[36px] overflow-hidden bg-[#141518] border border-[#26282e] cursor-pointer select-none transition-colors hover:border-stone-600"
           >
-            {/* Japanese Graphic Novel Atmospheric Background */}
-            <div className="absolute inset-0 bg-[#141518] z-0" />
+            {/* Atmospheric Japanese Graphic Novel Background Artwork */}
+            <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+              <img
+                src="https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1200&q=80"
+                alt=""
+                className="w-full h-full object-cover object-right-top sm:object-center opacity-20 sm:opacity-10 scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-[#141518] via-[#141518]/95 to-[#141518]/70 sm:to-[#141518]/40" />
+            </div>
+
+            {/* Subtle screentone halftone dots */}
             <div
               className="absolute inset-0 opacity-10 pointer-events-none z-0"
               style={{
@@ -1470,7 +1479,7 @@ export default function App() {
               }}
             />
 
-            <div className="relative z-10 p-7 sm:p-10 lg:p-12 flex flex-col lg:flex-row lg:items-center justify-between gap-8 lg:gap-12">
+            <div className="relative z-10 p-5 sm:p-10 lg:p-12 flex flex-col lg:flex-row lg:items-center justify-between gap-6 lg:gap-12">
               {/* Left Column: Direct Editorial Typography */}
               <div className="max-w-2xl space-y-4">
                 <p className="text-xs uppercase tracking-widest text-stone-400 font-semibold">
@@ -1497,16 +1506,60 @@ export default function App() {
                   <span>Mode Baca Responsif</span>
                 </div>
 
+                {/* Mobile Manga Volumes Preview Showcase */}
+                <div className="flex sm:hidden items-center justify-center py-2.5 my-1">
+                  <div className="relative w-64 h-36 flex items-center justify-center">
+                    {/* Volume 1 */}
+                    <div className="absolute left-2 w-24 h-32 rounded-lg overflow-hidden shadow-lg -rotate-6 border border-white/10 bg-[#1c1d22]">
+                      <img
+                        src="https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=300&q=80"
+                        alt="Manga Shonen"
+                        className="w-full h-full object-cover grayscale contrast-125"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-1.5">
+                        <span className="text-[8px] text-stone-400 font-mono">Vol. 01</span>
+                        <span className="text-[10px] font-bold text-white truncate">Shonen</span>
+                      </div>
+                    </div>
+
+                    {/* Volume 2 (Center) */}
+                    <div className="relative z-10 w-28 h-36 rounded-lg overflow-hidden shadow-xl border border-white/15 bg-[#22242a]">
+                      <img
+                        src="https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=300&q=80"
+                        alt="Manga Featured"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex flex-col justify-end p-2">
+                        <span className="text-[8px] text-rose-400 font-mono font-bold uppercase">Terbaru</span>
+                        <span className="text-xs font-black text-white leading-tight">Weekly</span>
+                      </div>
+                    </div>
+
+                    {/* Volume 3 */}
+                    <div className="absolute right-2 w-24 h-32 rounded-lg overflow-hidden shadow-lg rotate-6 border border-white/10 bg-[#1c1d22]">
+                      <img
+                        src="https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=300&q=80"
+                        alt="Manga Fantasy"
+                        className="w-full h-full object-cover grayscale contrast-125"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-1.5">
+                        <span className="text-[8px] text-stone-400 font-mono">Archive</span>
+                        <span className="text-[10px] font-bold text-white truncate">Fantasy</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Solid Flat Button */}
-                <div className="pt-3">
-                  <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-[#151514] font-bold text-xs sm:text-sm hover:bg-stone-200 transition-transform duration-200 group-hover:translate-x-1">
+                <div className="pt-2">
+                  <div className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-white text-[#151514] font-bold text-xs sm:text-sm hover:bg-stone-200 transition-transform duration-200 group-hover:translate-x-1">
                     <span>Buka Reader Manga</span>
                     <span aria-hidden="true">→</span>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Editorial Manga Volumes Showcase */}
+              {/* Right Column: Editorial Manga Volumes Showcase (Desktop & Tablet) */}
               <div className="hidden sm:flex items-center justify-center lg:justify-end">
                 <div className="relative w-80 h-56 flex items-center justify-center">
                   {/* Volume 1 (Left tilted) */}
