@@ -663,7 +663,7 @@ export function OrdersPage({
 
             {/* Kolom Kanan: Panduan Pembayaran & Upload Bukti */}
             <div className="lg:col-span-5 space-y-6">
-              {/* Petunjuk Pembayaran jika status Pending */}
+              {/* Petunjuk Pembayaran / Status Box */}
               {selectedOrder.status === "pending" ? (
                 <div className="bg-white border-2 border-amber-200 rounded-2xl p-6 shadow-xs space-y-5">
                   <div className="flex items-center gap-2 text-amber-800">
@@ -1025,6 +1025,31 @@ export function OrdersPage({
                       </button>
                     </div>
                   )}
+                </div>
+              ) : selectedOrder.status === "cancelled" ? (
+                /* Detail Status Pembayaran Dibatalkan / Expired */
+                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 shadow-xs space-y-3">
+                  <div className="flex items-center gap-2 text-rose-800">
+                    <XMarkIcon className="w-6 h-6 text-rose-600" />
+                    <div>
+                      <h4 className="font-bold text-base text-rose-900">Pesanan Dibatalkan</h4>
+                      <p className="text-xs text-rose-700">
+                        Batas waktu pembayaran (15 menit) telah habis atau pesanan telah dibatalkan.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pt-2 text-xs text-rose-700 leading-relaxed border-t border-rose-200/60">
+                    Jika Anda belum mentransfer, tidak ada biaya yang ditagihkan. Jika Anda ingin membeli produk ini, silakan buat pesanan baru melalui keranjang belanja.
+                  </div>
+                  <div className="pt-1">
+                    <button
+                      onClick={() => onNavigate("store", "/")}
+                      className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
+                    >
+                      <span>Buat Pesanan Baru</span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 /* Detail Status Pembayaran Sukses */
