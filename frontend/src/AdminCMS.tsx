@@ -97,7 +97,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
   const [duitkuApiKey, setDuitkuApiKey] = useState("");
   const [hasDuitkuApiKey, setHasDuitkuApiKey] = useState(false);
   const [duitkuSandbox, setDuitkuSandbox] = useState(true);
-  const [duitkuEnabled, setDuitkuEnabled] = useState(true);
+  const [duitkuEnabled, setDuitkuEnabled] = useState(false);
   const [duitkuExpiryPeriod, setDuitkuExpiryPeriod] = useState(1440);
   const [savingDuitkuSettings, setSavingDuitkuSettings] = useState(false);
 
@@ -297,7 +297,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       setDuitkuMerchantCode(s.merchant_code || "");
       setHasDuitkuApiKey(s.has_api_key || false);
       setDuitkuSandbox(s.sandbox ?? true);
-      setDuitkuEnabled(s.enabled ?? true);
+      setDuitkuEnabled(s.enabled ?? false);
       setDuitkuExpiryPeriod(s.expiry_period || 1440);
     } catch (err: any) {
       console.error("Gagal memuat pengaturan Duitku:", err);

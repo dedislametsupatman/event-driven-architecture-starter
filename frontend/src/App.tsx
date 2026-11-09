@@ -377,7 +377,10 @@ export default function App() {
   if (viewMode === "cms") {
     return (
       <AdminCMS
-        onBackToStore={() => navigateTo("store", "/")}
+        onBackToStore={() => {
+          loadPaymentMethods();
+          navigateTo("store", "/");
+        }}
         userRole={currentUser?.role}
       />
     );

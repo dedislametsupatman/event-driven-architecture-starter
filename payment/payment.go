@@ -67,7 +67,7 @@ type DuitkuSettings struct {
 
 func getDuitkuConfig(ctx context.Context) (merchantCode, apiKey string, isSandbox, isEnabled bool, expiryPeriod int) {
 	isSandbox = true
-	isEnabled = true
+	isEnabled = false
 	expiryPeriod = 1440 // 24 hours
 
 	if db != nil {
@@ -130,7 +130,7 @@ func Methods(ctx context.Context) (*PaymentMethodsResponse, error) {
 			},
 		},
 		QRISImageUrl:       "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=00020101021226610016ID.CO.QRIS.WWW0118936009990000000001021000000000005204581253033605802ID5913MYSTORE6007BANDUNG61054011562070703A016304E8A5",
-		DuitkuActive:       isEnabled,
+		DuitkuActive:       isEnabled && merchantCode != "",
 		DuitkuSandbox:      isSandbox,
 		DuitkuMerchantCode: merchantCode,
 		MidtransActive:     false,

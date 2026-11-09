@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   api,
@@ -61,6 +61,13 @@ export function CartPage({
     postal_code: "",
     payment_method: "manual_transfer",
   });
+
+  // Jika Duitku dinonaktifkan di pengaturan, kembalikan pilihan metode bayar ke transfer manual
+  useEffect(() => {
+    if (checkoutForm.payment_method === "duitku" && paymentMethods && !paymentMethods.duitku_active) {
+      setCheckoutForm((prev) => ({ ...prev, payment_method: "manual_transfer" }));
+    }
+  }, [paymentMethods, checkoutForm.payment_method]);
 
   const hasPhysicalItems = cart.some((item) => !item.product.is_digital);
   const cartSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
@@ -514,26 +521,28 @@ export function CartPage({
                       </div>
                     </label>
 
-                    {/* Duitku POP Payment Gateway */}
-                    <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                      checkoutForm.payment_method === "duitku"
-                        ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
-                        : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
-                    }`}>
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        value="duitku"
-                        checked={checkoutForm.payment_method === "duitku"}
-                        onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "duitku" })}
-                        className="accent-[#151514]"
-                      />
-                      <CreditCardIcon className="w-5 h-5 text-indigo-700" />
-                      <div className="flex-1 text-xs">
-                        <span className="font-bold text-[#151514] block">Payment Gateway (Duitku)</span>
-                        <span className="text-[11px] text-[#6b665c]">Virtual Account, QRIS, E-Wallet, Kartu Kredit (POP)</span>
-                      </div>
-                    </label>
+                    {/* Duitku POP Payment Gateway (Hanya muncul jika diaktifkan di Pengaturan) */}
+                    {paymentMethods?.duitku_active && (
+                      <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        checkoutForm.payment_method === "duitku"
+                          ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
+                          : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
+                      }`}>
+                        <input
+                          type="radio"
+                          name="payment_method"
+                          value="duitku"
+                          checked={checkoutForm.payment_method === "duitku"}
+                          onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "duitku" })}
+                          className="accent-[#151514]"
+                        />
+                        <CreditCardIcon className="w-5 h-5 text-indigo-700" />
+                        <div className="flex-1 text-xs">
+                          <span className="font-bold text-[#151514] block">Payment Gateway (Duitku)</span>
+                          <span className="text-[11px] text-[#6b665c]">Virtual Account, QRIS, E-Wallet, Kartu Kredit (POP)</span>
+                        </div>
+                      </label>
+                    )}
                   </div>
                 </div>
 
