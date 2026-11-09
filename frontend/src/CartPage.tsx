@@ -64,18 +64,12 @@ export function CartPage({
     bank_code: "BCA",
   });
 
-  // Jika Duitku atau QRISGate dinonaktifkan di pengaturan, sesuaikan pilihan metode bayar
+  // Pastikan metode bayar default adalah qrisgate
   useEffect(() => {
-    if (checkoutForm.payment_method === "duitku" && paymentMethods && !paymentMethods.duitku_active) {
-      setCheckoutForm((prev) => ({
-        ...prev,
-        payment_method: paymentMethods.qrisgate_active !== false ? "qrisgate" : "manual_transfer",
-      }));
+    if (checkoutForm.payment_method !== "qrisgate") {
+      setCheckoutForm((prev) => ({ ...prev, payment_method: "qrisgate" }));
     }
-    if (checkoutForm.payment_method === "qrisgate" && paymentMethods && paymentMethods.qrisgate_active === false) {
-      setCheckoutForm((prev) => ({ ...prev, payment_method: "manual_transfer" }));
-    }
-  }, [paymentMethods, checkoutForm.payment_method]);
+  }, [checkoutForm.payment_method]);
 
   const hasPhysicalItems = cart.some((item) => !item.product.is_digital);
   const cartSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
@@ -518,153 +512,88 @@ export function CartPage({
                   </span>
 
                   <div className="space-y-2">
-                    {/* QRISGate Otomatis (QRIS + Transfer Bank Nominal Unik) */}
-                    {paymentMethods?.qrisgate_active !== false && (
-                      <div
-                        className={`rounded-xl border transition-all ${
-                          checkoutForm.payment_method === "qrisgate"
-                            ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
-                            : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
-                        }`}
-                      >
-                        <label className="flex items-center gap-3 p-3 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="payment_method"
-                            value="qrisgate"
-                            checked={checkoutForm.payment_method === "qrisgate"}
-                            onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "qrisgate" })}
-                            className="accent-[#151514]"
-                          />
-                          <QrCodeIcon className="w-5 h-5 text-emerald-700" />
-                          <div className="flex-1 text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-[#151514]">QRISGate Otomatis (QRIS &amp; Bank)</span>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white">
-                                Verifikasi Otomatis
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-[#6b665c]">
-                              Tanpa MDR • Kode unik otomatis • Langsung lunas dalam hitungan detik
-                            </span>
-                          </div>
-                        </label>
-
-                        {checkoutForm.payment_method === "qrisgate" && (
-                          <div className="px-3 pb-3 pt-1 border-t border-[#ddd9d2]/70 space-y-2">
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setCheckoutForm({ ...checkoutForm, qrisgate_channel: "QRIS" })}
-                                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
-                                  checkoutForm.qrisgate_channel === "QRIS"
-                                    ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
-                                    : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
-                                }`}
-                              >
-                                QRIS Semua E-Wallet/Bank
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setCheckoutForm({ ...checkoutForm, qrisgate_channel: "BANK_TRANSFER" })}
-                                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
-                                  checkoutForm.qrisgate_channel === "BANK_TRANSFER"
-                                    ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
-                                    : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
-                                }`}
-                              >
-                                Transfer Bank (Kode Unik)
-                              </button>
-                            </div>
-
-                            {checkoutForm.qrisgate_channel === "BANK_TRANSFER" && (
-                              <div className="flex items-center gap-2 pt-1">
-                                <span className="text-[11px] font-semibold text-[#6b665c]">Pilih Bank:</span>
-                                {["BCA", "MANDIRI", "BRI", "BNI"].map((code) => (
-                                  <button
-                                    key={code}
-                                    type="button"
-                                    onClick={() => setCheckoutForm({ ...checkoutForm, bank_code: code })}
-                                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${
-                                      checkoutForm.bank_code === code
-                                        ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
-                                        : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
-                                    }`}
-                                  >
-                                    {code}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Transfer Bank */}
-                    <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                      checkoutForm.payment_method === "manual_transfer"
-                        ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
-                        : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
-                    }`}>
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        value="manual_transfer"
-                        checked={checkoutForm.payment_method === "manual_transfer"}
-                        onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "manual_transfer" })}
-                        className="accent-[#151514]"
-                      />
-                      <BanknotesIcon className="w-5 h-5 text-[#151514]" />
-                      <div className="flex-1 text-xs">
-                        <span className="font-bold text-[#151514] block">Transfer Bank Manual</span>
-                        <span className="text-[11px] text-[#6b665c]">BCA, Mandiri, BNI (Verifikasi penjual)</span>
-                      </div>
-                    </label>
-
-                    {/* QRIS */}
-                    <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                      checkoutForm.payment_method === "qris"
-                        ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
-                        : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
-                    }`}>
-                      <input
-                        type="radio"
-                        name="payment_method"
-                        value="qris"
-                        checked={checkoutForm.payment_method === "qris"}
-                        onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "qris" })}
-                        className="accent-[#151514]"
-                      />
-                      <QrCodeIcon className="w-5 h-5 text-emerald-700" />
-                      <div className="flex-1 text-xs">
-                        <span className="font-bold text-[#151514] block">QRIS (Semua E-Wallet &amp; Mobile Banking)</span>
-                        <span className="text-[11px] text-[#6b665c]">GoPay, OVO, Dana, ShopeePay, BCA QR</span>
-                      </div>
-                    </label>
-
-                    {/* Duitku POP Payment Gateway (Hanya muncul jika diaktifkan di Pengaturan) */}
-                    {paymentMethods?.duitku_active && (
-                      <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                        checkoutForm.payment_method === "duitku"
+                    {/* Opsi Pembayaran Utama: QRIS (Semua E-Wallet & Mobile Banking) */}
+                    <div
+                      className={`rounded-xl border transition-all ${
+                        checkoutForm.payment_method === "qrisgate"
                           ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
                           : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
-                      }`}>
+                      }`}
+                    >
+                      <label className="flex items-center gap-3 p-3 cursor-pointer">
                         <input
                           type="radio"
                           name="payment_method"
-                          value="duitku"
-                          checked={checkoutForm.payment_method === "duitku"}
-                          onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "duitku" })}
+                          value="qrisgate"
+                          checked={checkoutForm.payment_method === "qrisgate"}
+                          onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "qrisgate" })}
                           className="accent-[#151514]"
                         />
-                        <CreditCardIcon className="w-5 h-5 text-indigo-700" />
+                        <QrCodeIcon className="w-5 h-5 text-emerald-700" />
                         <div className="flex-1 text-xs">
-                          <span className="font-bold text-[#151514] block">Payment Gateway (Duitku)</span>
-                          <span className="text-[11px] text-[#6b665c]">Virtual Account, QRIS, E-Wallet, Kartu Kredit (POP)</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-[#151514]">
+                              QRIS (Semua E-Wallet &amp; Mobile Banking)
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                              Verifikasi Otomatis
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-[#6b665c]">
+                            GoPay, OVO, Dana, ShopeePay, BCA QR
+                          </span>
                         </div>
                       </label>
-                    )}
+
+                      {checkoutForm.payment_method === "qrisgate" && (
+                        <div className="px-3 pb-3 pt-1 border-t border-[#ddd9d2]/70 space-y-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setCheckoutForm({ ...checkoutForm, qrisgate_channel: "QRIS" })}
+                              className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                                checkoutForm.qrisgate_channel === "QRIS"
+                                  ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
+                                  : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
+                              }`}
+                            >
+                              QRIS Semua E-Wallet/Bank
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCheckoutForm({ ...checkoutForm, qrisgate_channel: "BANK_TRANSFER" })}
+                              className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                                checkoutForm.qrisgate_channel === "BANK_TRANSFER"
+                                  ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
+                                  : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
+                              }`}
+                            >
+                              Transfer Bank (Kode Unik)
+                            </button>
+                          </div>
+
+                          {checkoutForm.qrisgate_channel === "BANK_TRANSFER" && (
+                            <div className="flex items-center gap-2 pt-1">
+                              <span className="text-[11px] font-semibold text-[#6b665c]">Pilih Bank:</span>
+                              {["BCA", "MANDIRI", "BRI", "BNI"].map((code) => (
+                                <button
+                                  key={code}
+                                  type="button"
+                                  onClick={() => setCheckoutForm({ ...checkoutForm, bank_code: code })}
+                                  className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${
+                                    checkoutForm.bank_code === code
+                                      ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
+                                      : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
+                                  }`}
+                                >
+                                  {code}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
