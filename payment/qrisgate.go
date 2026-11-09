@@ -34,30 +34,13 @@ type QRISGateSettings struct {
 	Enabled          bool   `json:"enabled"`
 }
 
-// getQRISGateConfig resolves QRISGate credentials from environment variables first,
-// with fallback to the payment_settings table in the database.
+// getQRISGateConfig resolves QRISGate credentials with database settings (Admin CMS)
+// taking highest priority, and environment variables acting as fallback.
 func getQRISGateConfig(ctx context.Context) (baseURL, apiKey, webhookSecret string, isEnabled bool) {
 	baseURL = defaultQRISGateBaseURL
 	isEnabled = true
 
-	if db != nil {
-		var dbURL, dbKey, dbSecret, dbEnabled string
-		_ = db.QueryRow(ctx, `SELECT value FROM payment_settings WHERE key = 'qrisgate_base_url'`).Scan(&dbURL)
-		_ = db.QueryRow(ctx, `SELECT value FROM payment_settings WHERE key = 'qrisgate_api_key'`).Scan(&dbKey)
-		_ = db.QueryRow(ctx, `SELECT value FROM payment_settings WHERE key = 'qrisgate_webhook_secret'`).Scan(&dbSecret)
-		_ = db.QueryRow(ctx, `SELECT value FROM payment_settings WHERE key = 'qrisgate_enabled'`).Scan(&dbEnabled)
-
-		if strings.TrimSpace(dbURL) != "" {
-			baseURL = strings.TrimRight(strings.TrimSpace(dbURL), "/")
-		}
-		apiKey = strings.TrimSpace(dbKey)
-		webhookSecret = strings.TrimSpace(dbSecret)
-		if dbEnabled != "" {
-			isEnabled = dbEnabled == "true"
-		}
-	}
-
-	// Environment variables take precedence as mandated by security best practices
+	// 1. Fallback to server environment variables if available
 	if envURL := strings.TrimSpace(os.Getenv("QRISGATE_BASE_URL")); envURL != "" {
 		baseURL = strings.TrimRight(envURL, "/")
 	}
@@ -69,6 +52,28 @@ func getQRISGateConfig(ctx context.Context) (baseURL, apiKey, webhookSecret stri
 	}
 	if envEn := strings.TrimSpace(os.Getenv("QRISGATE_ENABLED")); envEn != "" {
 		isEnabled = envEn == "true"
+	}
+
+	// 2. Settings saved via Admin CMS in database take precedence (user preference in UI)
+	if db != nil {
+		var dbURL, dbKey, dbSecret, dbEnabled string
+		_ = db.QueryRow(ctx, `SELECT value FROM payment_settings WHERE key = 'qrisgate_base_url'`).Scan(&dbURL)
+		_ = db.QueryRow(ctx, `SELECT value FROM payment_settings WHERE key = 'qrisgate_api_key'`).Scan(&dbKey)
+		_ = db.QueryRow(ctx, `SELECT value FROM payment_settings WHERE key = 'qrisgate_webhook_secret'`).Scan(&dbSecret)
+		_ = db.QueryRow(ctx, `SELECT value FROM payment_settings WHERE key = 'qrisgate_enabled'`).Scan(&dbEnabled)
+
+		if strings.TrimSpace(dbURL) != "" {
+			baseURL = strings.TrimRight(strings.TrimSpace(dbURL), "/")
+		}
+		if strings.TrimSpace(dbKey) != "" {
+			apiKey = strings.TrimSpace(dbKey)
+		}
+		if strings.TrimSpace(dbSecret) != "" {
+			webhookSecret = strings.TrimSpace(dbSecret)
+		}
+		if dbEnabled != "" {
+			isEnabled = dbEnabled == "true"
+		}
 	}
 
 	return

@@ -2102,7 +2102,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                 <div>
                   <h2 className="text-base font-bold text-slate-900">Pengaturan QRISGate Payment Gateway</h2>
                   <p className="text-xs text-slate-500">
-                    Gateway QRIS &amp; Transfer Bank nominal unik tanpa MDR tambahan (uang langsung ke rekening merchant). Prioritas membaca dari Environment Variable server.
+                    Konfigurasi kredensial QRISGate langsung dari panel ini tanpa perlu export variable di terminal server.
                   </p>
                 </div>
               </div>
