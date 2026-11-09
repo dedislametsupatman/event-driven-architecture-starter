@@ -833,13 +833,16 @@ func MarkPaidWithEvent(ctx context.Context, orderID int64, externalOrderID strin
 	return nil
 }
 
-// CancelExpiredOrders automatically cancels unpaid pending orders older than 24 hours and restores stock.
+// CancelExpiredOrders automatically cancels unpaid pending orders older than 24 hours (or 15 minutes for QRISGate) and restores stock.
 //
 //encore:api private
 func CancelExpiredOrders(ctx context.Context) error {
 	rows, err := db.Query(ctx, `
-		SELECT id FROM orders 
-		WHERE status = 'pending' AND created_at < NOW() - INTERVAL '24 hours'
+		SELECT id, payment_method FROM orders 
+		WHERE status = 'pending' AND (
+			created_at < NOW() - INTERVAL '24 hours' OR
+			(payment_method = 'qrisgate' AND created_at < NOW() - INTERVAL '16 minutes')
+		)
 	`)
 	if err != nil {
 		return err
@@ -848,7 +851,8 @@ func CancelExpiredOrders(ctx context.Context) error {
 
 	for rows.Next() {
 		var orderID int64
-		if err := rows.Scan(&orderID); err == nil {
+		var payMethod string
+		if err := rows.Scan(&orderID, &payMethod); err == nil {
 			// Restore product stocks
 			itemRows, itemErr := db.Query(ctx, `SELECT product_id, quantity, is_digital FROM order_items WHERE order_id = $1`, orderID)
 			if itemErr == nil {
@@ -863,7 +867,7 @@ func CancelExpiredOrders(ctx context.Context) error {
 				itemRows.Close()
 			}
 			_, _ = db.Exec(ctx, `UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, orderID)
-			rlog.Info("expired order cancelled", "order_id", orderID)
+			rlog.Info("expired order cancelled", "order_id", orderID, "payment_method", payMethod)
 		}
 	}
 	return nil
@@ -1088,5 +1092,64 @@ var _ = cron.NewJob("cancel-unpaid-orders", cron.JobConfig{
 var _ = pubsub.NewSubscription(payment.PaymentSuccessTopic, "mark-order-paid", pubsub.SubscriptionConfig[*payment.PaymentSuccessEvent]{
 	Handler: func(ctx context.Context, e *payment.PaymentSuccessEvent) error {
 		return MarkPaidWithEvent(ctx, e.OrderID, e.ExternalOrderID, e.PaidAt)
+	},
+})
+
+// Subscribe to payment failed events to cancel expired orders and restore stock
+var _ = pubsub.NewSubscription(payment.PaymentFailedTopic, "handle-payment-failed", pubsub.SubscriptionConfig[*payment.PaymentFailedEvent]{
+	Handler: func(ctx context.Context, e *payment.PaymentFailedEvent) error {
+		orderID := e.OrderID
+		if orderID == 0 && e.ExternalOrderID != "" {
+			_ = db.QueryRow(ctx, `SELECT id FROM orders WHERE external_order_id = $1`, e.ExternalOrderID).Scan(&orderID)
+		}
+		if orderID == 0 {
+			return nil
+		}
+
+		var currentStatus string
+		var customerName, customerEmail, customerPhone, trackingNumber string
+		var grandTotal int64
+		err := db.QueryRow(ctx, `
+			SELECT status, customer_name, customer_email, customer_phone, grand_total, COALESCE(tracking_number, '')
+			FROM orders WHERE id = $1
+		`, orderID).Scan(&currentStatus, &customerName, &customerEmail, &customerPhone, &grandTotal, &trackingNumber)
+		if err != nil || currentStatus != "pending" {
+			return nil
+		}
+
+		// Kembalikan stok barang fisik
+		itemRows, itemErr := db.Query(ctx, `SELECT product_id, quantity, is_digital FROM order_items WHERE order_id = $1`, orderID)
+		if itemErr == nil {
+			for itemRows.Next() {
+				var pID int64
+				var qty int
+				var isDig bool
+				if err := itemRows.Scan(&pID, &qty, &isDig); err == nil && !isDig {
+					_ = product.AdjustStock(ctx, pID, qty)
+				}
+			}
+			itemRows.Close()
+		}
+
+		targetStatus := "cancelled"
+		_, err = db.Exec(ctx, `UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 AND status = 'pending'`, targetStatus, orderID)
+		if err != nil {
+			return err
+		}
+		rlog.Info("order expired/cancelled and stock restored", "order_id", orderID, "reason", e.Reason)
+
+		_, _ = OrderStatusChangedTopic.Publish(ctx, &OrderStatusChangedEvent{
+			OrderID:        orderID,
+			CustomerName:   customerName,
+			CustomerEmail:  customerEmail,
+			CustomerPhone:  customerPhone,
+			OldStatus:      "pending",
+			NewStatus:      targetStatus,
+			TrackingNumber: trackingNumber,
+			GrandTotal:     grandTotal,
+			ChangedAt:      time.Now(),
+		})
+
+		return nil
 	},
 })

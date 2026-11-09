@@ -593,6 +593,14 @@ func handleQRISGateWebhook(w http.ResponseWriter, req *http.Request) {
 				WHERE (external_order_id = $1 OR transaction_id = $2) AND status = 'PENDING'
 			`, payload.ExternalOrderID, payload.TransactionID)
 		}
+		orderID := parseOrderIDFromExternal(payload.ExternalOrderID)
+		_, _ = PaymentFailedTopic.Publish(ctx, &PaymentFailedEvent{
+			OrderID:         orderID,
+			ExternalOrderID: payload.ExternalOrderID,
+			TransactionID:   payload.TransactionID,
+			Status:          "expired",
+			Reason:          "Batas waktu pembayaran QRISGate (15 menit) telah habis",
+		})
 
 	case "payment.cancelled":
 		if db != nil {
@@ -602,6 +610,14 @@ func handleQRISGateWebhook(w http.ResponseWriter, req *http.Request) {
 				WHERE (external_order_id = $1 OR transaction_id = $2) AND status = 'PENDING'
 			`, payload.ExternalOrderID, payload.TransactionID)
 		}
+		orderID := parseOrderIDFromExternal(payload.ExternalOrderID)
+		_, _ = PaymentFailedTopic.Publish(ctx, &PaymentFailedEvent{
+			OrderID:         orderID,
+			ExternalOrderID: payload.ExternalOrderID,
+			TransactionID:   payload.TransactionID,
+			Status:          "cancelled",
+			Reason:          "Pembayaran QRISGate dibatalkan",
+		})
 	}
 
 	// 6. Always respond 200 quickly
@@ -744,6 +760,23 @@ func CheckQRISGateTransaction(ctx context.Context, id string) (*QRISGateTxData, 
 						SET status = $1, updated_at = NOW()
 						WHERE transaction_id = $2 AND status = 'PENDING'
 					`, remoteStatus, remote.TransactionID)
+
+					if remoteStatus == "EXPIRED" || remoteStatus == "CANCELLED" {
+						if orderID == 0 {
+							orderID = parseOrderIDFromExternal(remote.ExternalOrderID)
+						}
+						targetStatus := "expired"
+						if remoteStatus == "CANCELLED" {
+							targetStatus = "cancelled"
+						}
+						_, _ = PaymentFailedTopic.Publish(ctx, &PaymentFailedEvent{
+							OrderID:         orderID,
+							ExternalOrderID: remote.ExternalOrderID,
+							TransactionID:   remote.TransactionID,
+							Status:          targetStatus,
+							Reason:          "Batas waktu pembayaran QRISGate telah habis",
+						})
+					}
 				}
 			}
 

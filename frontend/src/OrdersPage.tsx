@@ -156,7 +156,9 @@ export function OrdersPage({
           if (currentUser) loadUserOrders();
         } else if (statusUpper === "EXPIRED" || statusUpper === "CANCELLED") {
           setPollingActive(false);
+          showToast("Batas waktu pembayaran telah habis. Pesanan dibatalkan.");
           await loadSpecificOrder(selectedOrder.id);
+          if (currentUser) loadUserOrders();
         }
       } catch {
         // Fallback: juga cek status order lokal bila transaksi QRISGate belum ada

@@ -35,8 +35,21 @@ type PaymentSuccessEvent struct {
 	PaidAt          time.Time `json:"paid_at"`
 }
 
-// PaymentSuccessTopic is published when a payment is verified (via Duitku or manual admin approval).
+type PaymentFailedEvent struct {
+	OrderID         int64  `json:"order_id"`
+	ExternalOrderID string `json:"external_order_id,omitempty"`
+	TransactionID   string `json:"transaction_id,omitempty"`
+	Status          string `json:"status"` // "expired" or "cancelled"
+	Reason          string `json:"reason,omitempty"`
+}
+
+// PaymentSuccessTopic is published when a payment is verified (via QRISGate, Duitku or manual approval).
 var PaymentSuccessTopic = pubsub.NewTopic[*PaymentSuccessEvent]("payment-success", pubsub.TopicConfig{
+	DeliveryGuarantee: pubsub.AtLeastOnce,
+})
+
+// PaymentFailedTopic is published when a payment expires or is cancelled.
+var PaymentFailedTopic = pubsub.NewTopic[*PaymentFailedEvent]("payment-failed", pubsub.TopicConfig{
 	DeliveryGuarantee: pubsub.AtLeastOnce,
 })
 
