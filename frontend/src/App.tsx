@@ -437,35 +437,35 @@ export default function App() {
               </div>
 
               {/* Center Links */}
-              <nav className="hidden md:flex items-center gap-7 text-xs font-medium text-white/80" aria-label="Navigasi Utama">
+              <nav className="hidden md:flex items-center gap-7 text-xs font-medium text-white" aria-label="Navigasi Utama">
                 <button
                   onClick={() => navigateTo("store", "/")}
-                  className="hover:text-white transition-colors"
+                  className="text-stone-200 hover:text-white transition-colors"
                 >
                   Shop
                 </button>
                 <button
                   onClick={() => navigateTo("store", "/")}
-                  className="hover:text-white transition-colors"
+                  className="text-stone-200 hover:text-white transition-colors"
                 >
                   Katalog
                 </button>
                 <button
                   onClick={() => navigateTo("manga", "/manga")}
-                  className={`transition-colors flex items-center gap-1.5 ${viewMode === "manga" ? "text-white font-bold underline underline-offset-4" : "hover:text-white"}`}
+                  className={`transition-colors flex items-center gap-1.5 ${viewMode === "manga" ? "text-white font-bold underline underline-offset-4" : "text-stone-200 hover:text-white"}`}
                 >
                   <span>Manga</span>
                   <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold text-[9px]">HOT</span>
                 </button>
                 <button
                   onClick={() => navigateTo("orders", "/orders")}
-                  className={`transition-colors ${viewMode === "orders" ? "text-white font-bold underline underline-offset-4" : "hover:text-white"}`}
+                  className={`transition-colors ${viewMode === "orders" ? "text-white font-bold underline underline-offset-4" : "text-stone-200 hover:text-white"}`}
                 >
                   Riwayat Pesanan
                 </button>
                 <button
                   onClick={() => navigateTo("profile", "/profile")}
-                  className={`transition-colors ${viewMode === "profile" ? "text-white font-bold underline underline-offset-4" : "hover:text-white"}`}
+                  className={`transition-colors ${viewMode === "profile" ? "text-white font-bold underline underline-offset-4" : "text-stone-200 hover:text-white"}`}
                 >
                   {currentUser ? currentUser.name.split(" ")[0] : "Akun"}
                 </button>
@@ -725,37 +725,37 @@ export default function App() {
                 {/* 3. TOP-CENTER FLOATING NAVIGATION LINKS */}
                 <div className="relative z-20 pt-4 sm:pt-6 px-4 flex items-center justify-center">
                   <nav
-                    className="hidden lg:flex items-center gap-10 text-xs sm:text-[13px] font-medium text-white/85"
+                    className="hidden lg:flex items-center gap-10 text-xs sm:text-[13px] font-semibold text-white"
                     aria-label="Navigasi Utama"
                   >
                     <button
                       onClick={() => navigateTo("store", "/")}
-                      className="text-white font-semibold hover:text-[#ff5a52] transition-colors"
+                      className="text-white hover:text-amber-200 transition-colors font-bold"
                     >
                       Shop
                     </button>
                     <a
                       href="#katalog"
-                      className="hover:text-white transition-colors"
+                      className="text-stone-200 hover:text-white transition-colors"
                     >
                       Katalog
                     </a>
                     <button
                       onClick={() => navigateTo("manga", "/manga")}
-                      className="hover:text-white transition-colors flex items-center gap-1.5"
+                      className="text-stone-200 hover:text-white transition-colors flex items-center gap-1.5"
                     >
                       <span>Manga</span>
                       <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold text-[9px]">HOT</span>
                     </button>
                     <button
                       onClick={() => navigateTo("orders", "/orders")}
-                      className="hover:text-white transition-colors flex items-center gap-1.5"
+                      className="text-stone-200 hover:text-white transition-colors flex items-center gap-1.5"
                     >
                       <span>Riwayat Pesanan</span>
                     </button>
                     <button
                       onClick={() => navigateTo("profile", "/profile")}
-                      className="hover:text-white transition-colors"
+                      className="text-stone-200 hover:text-white transition-colors"
                     >
                       {currentUser ? currentUser.name.split(" ")[0] : "Akun Saya"}
                     </button>

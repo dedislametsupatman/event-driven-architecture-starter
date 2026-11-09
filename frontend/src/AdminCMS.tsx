@@ -14,8 +14,26 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
 
   // Admin Auth State
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(userRole === "admin");
-  const [adminEmail, setAdminEmail] = useState("admin@store.com");
-  const [adminPassword, setAdminPassword] = useState("admin123");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [captchaCode, setCaptchaCode] = useState("");
+  const [userCaptcha, setUserCaptcha] = useState("");
+  const [captchaErr, setCaptchaErr] = useState("");
+
+  const generateCaptcha = () => {
+    const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    let result = "";
+    for (let i = 0; i < 5; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptchaCode(result);
+    setUserCaptcha("");
+    setCaptchaErr("");
+  };
+
+  useEffect(() => {
+    generateCaptcha();
+  }, []);
 
   // Dashboard Data State
   const [dashData, setDashData] = useState<{
@@ -388,15 +406,26 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
 
   const handleAdminLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!adminEmail.trim() || !adminPassword) {
+      showNotification("Harap masukkan email dan password admin", true);
+      return;
+    }
+    if (userCaptcha.trim().toUpperCase() !== captchaCode.toUpperCase()) {
+      setCaptchaErr("Kode captcha salah, silakan coba lagi.");
+      showNotification("Kode Captcha salah! Silakan masukkan kode keamanan yang tertera.", true);
+      generateCaptcha();
+      return;
+    }
     setLoading(true);
     try {
-      const res = await api.adminLogin({ email: adminEmail, password: adminPassword });
+      const res = await api.adminLogin({ email: adminEmail.trim(), password: adminPassword });
       localStorage.setItem("token", res.token);
       setIsAdminLoggedIn(true);
       showNotification("Selamat datang di Admin CMS!");
       fetchDashboard();
     } catch (err: any) {
       showNotification(err.message || "Gagal masuk admin", true);
+      generateCaptcha();
     } finally {
       setLoading(false);
     }
@@ -746,6 +775,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                 type="email"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
+                placeholder="nama@domain.com"
                 required
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
               />
@@ -759,33 +789,79 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                 type="password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="••••••••"
                 required
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
               />
             </div>
 
+            {/* Captcha Security Challenge */}
+            <div className="pt-1">
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  Kode Keamanan (Captcha)
+                </label>
+                <button
+                  type="button"
+                  onClick={generateCaptcha}
+                  className="text-[11px] text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 transition"
+                  title="Ganti Kode Captcha"
+                >
+                  <span>↻ Acak Kode</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex-1 h-12 bg-slate-100 border border-slate-300 rounded-xl flex items-center justify-center tracking-[0.45em] font-mono font-black text-xl text-slate-800 select-none relative overflow-hidden shadow-inner">
+                  {/* Decorative noise lines */}
+                  <div className="absolute inset-0 opacity-25 pointer-events-none">
+                    <div className="w-full h-0.5 bg-slate-500 absolute top-3 -rotate-3" />
+                    <div className="w-full h-0.5 bg-blue-500 absolute top-7 rotate-2" />
+                    <div className="w-full h-0.5 bg-slate-600 absolute top-10 -rotate-2" />
+                  </div>
+                  {captchaCode.split("").map((char, idx) => (
+                    <span
+                      key={idx}
+                      style={{
+                        transform: `rotate(${(idx % 2 === 0 ? 1 : -1) * ((idx + 1) * 3)}deg) translateY(${idx % 2 === 0 ? -1 : 1}px)`,
+                      }}
+                      className="inline-block drop-shadow-xs"
+                    >
+                      {char}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <input
+                type="text"
+                value={userCaptcha}
+                onChange={(e) => {
+                  setUserCaptcha(e.target.value.toUpperCase());
+                  setCaptchaErr("");
+                }}
+                placeholder="Ketik 5 kode di atas"
+                required
+                maxLength={5}
+                className={`w-full px-3.5 py-2.5 bg-slate-50 border ${
+                  captchaErr ? "border-rose-400 ring-2 ring-rose-200" : "border-slate-200"
+                } rounded-xl text-sm font-mono tracking-widest text-center uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold`}
+              />
+              {captchaErr && (
+                <p className="text-[11px] text-rose-600 font-medium mt-1">
+                  {captchaErr}
+                </p>
+              )}
+            </div>
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm shadow-md transition disabled:opacity-50"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm shadow-md transition disabled:opacity-50 mt-2"
             >
               {loading ? "Memverifikasi..." : "Masuk ke Panel CMS"}
             </button>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => handleAdminLogin()}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-medium rounded-xl border border-slate-200 transition"
-              >
-                ⚡ Masuk Cepat Mode Demo Admin (1-Klik)
-              </button>
-            </div>
           </form>
-
-          <p className="mt-6 text-center text-xs text-slate-400">
-            Kredensial Default: <span className="font-mono text-slate-600">admin@store.com</span> / <span className="font-mono text-slate-600">admin123</span>
-          </p>
         </div>
       </div>
     );
