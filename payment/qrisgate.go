@@ -147,11 +147,15 @@ func UpdateQRISGateSettings(ctx context.Context, p *QRISGateSettings) (*QRISGate
 	}, nil
 }
 
+type CreateQRISGateParams = CreateQRISGateTxParams
+
 type CreateQRISGateTxParams struct {
 	OrderID         int64  `json:"order_id"`
 	ExternalOrderID string `json:"external_order_id"`
 	Amount          int64  `json:"amount"`
 	CustomerName    string `json:"customer_name"`
+	CustomerEmail   string `json:"customer_email,omitempty"`
+	CustomerPhone   string `json:"customer_phone,omitempty"`
 	PaymentMethod   string `json:"payment_method,omitempty"` // "QRIS" or "BANK_TRANSFER"
 	BankCode        string `json:"bank_code,omitempty"`      // e.g. "BCA"
 	ReturnURL       string `json:"return_url,omitempty"`
