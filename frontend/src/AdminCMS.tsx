@@ -119,6 +119,15 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
   const [duitkuExpiryPeriod, setDuitkuExpiryPeriod] = useState(1440);
   const [savingDuitkuSettings, setSavingDuitkuSettings] = useState(false);
 
+  // QRISGate Payment Gateway Settings State
+  const [qrisGateBaseUrl, setQrisGateBaseUrl] = useState("https://qrisgate.web.id");
+  const [qrisGateApiKey, setQrisGateApiKey] = useState("");
+  const [qrisGateWebhookSecret, setQrisGateWebhookSecret] = useState("");
+  const [hasQrisGateApiKey, setHasQrisGateApiKey] = useState(false);
+  const [hasQrisGateWebhookSecret, setHasQrisGateWebhookSecret] = useState(false);
+  const [qrisGateEnabled, setQrisGateEnabled] = useState(true);
+  const [savingQrisGateSettings, setSavingQrisGateSettings] = useState(false);
+
   // Store Profile & Branding Settings State
   const [storeName, setStoreName] = useState("SUPATMAN STORE");
   const [storeTagline, setStoreTagline] = useState("Hardware Setup & Digital Atelier");
@@ -195,6 +204,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       fetchStoreSettings();
       fetchAuthSettings();
       fetchEmailSettings();
+      fetchQrisGateSettings();
       fetchDuitkuSettings();
     }
   }, [activeTab, isAdminLoggedIn]);
@@ -306,6 +316,42 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       showNotification(err.message || "Gagal menyimpan pengaturan", true);
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const fetchQrisGateSettings = async () => {
+    try {
+      const s = await api.getQRISGateSettings();
+      setQrisGateBaseUrl(s.base_url || "https://qrisgate.web.id");
+      setHasQrisGateApiKey(s.has_api_key || false);
+      setHasQrisGateWebhookSecret(s.has_webhook_secret || false);
+      setQrisGateEnabled(s.enabled ?? true);
+    } catch (err: any) {
+      console.error("Gagal memuat pengaturan QRISGate:", err);
+    }
+  };
+
+  const handleSaveQrisGateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingQrisGateSettings(true);
+    try {
+      const res = await api.updateQRISGateSettings({
+        base_url: qrisGateBaseUrl,
+        api_key: qrisGateApiKey || undefined,
+        webhook_secret: qrisGateWebhookSecret || undefined,
+        enabled: qrisGateEnabled,
+      });
+      showNotification("Pengaturan QRISGate Payment Gateway berhasil disimpan!");
+      setQrisGateBaseUrl(res.base_url || "https://qrisgate.web.id");
+      setQrisGateApiKey("");
+      setQrisGateWebhookSecret("");
+      setHasQrisGateApiKey(res.has_api_key);
+      setHasQrisGateWebhookSecret(res.has_webhook_secret);
+      setQrisGateEnabled(res.enabled);
+    } catch (err: any) {
+      showNotification(err.message || "Gagal menyimpan pengaturan QRISGate", true);
+    } finally {
+      setSavingQrisGateSettings(false);
     }
   };
 
@@ -2042,6 +2088,113 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                     className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
                   >
                     {savingSettings ? "Menyimpan..." : "Simpan Pengaturan Google"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Section: QRISGate Payment Gateway Configuration */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg shadow-xs">
+                  ⚡
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Pengaturan QRISGate Payment Gateway</h2>
+                  <p className="text-xs text-slate-500">
+                    Gateway QRIS &amp; Transfer Bank nominal unik tanpa MDR tambahan (uang langsung ke rekening merchant). Prioritas membaca dari Environment Variable server.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveQrisGateSettings} className="space-y-5 text-xs">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">Status Pembayaran QRISGate</div>
+                    <div className="text-slate-500 mt-0.5">
+                      Aktifkan opsi pembayaran otomatis QRISGate pada halaman checkout
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={qrisGateEnabled}
+                      onChange={(e) => setQrisGateEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    QRISGATE_BASE_URL
+                  </label>
+                  <input
+                    type="url"
+                    value={qrisGateBaseUrl}
+                    onChange={(e) => setQrisGateBaseUrl(e.target.value)}
+                    placeholder="https://qrisgate.web.id"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      QRISGATE_API_KEY{" "}
+                      {hasQrisGateApiKey && (
+                        <span className="text-emerald-600 font-bold ml-1">(✓ Terpasang di Server)</span>
+                      )}
+                    </label>
+                    <input
+                      type="password"
+                      value={qrisGateApiKey}
+                      onChange={(e) => setQrisGateApiKey(e.target.value)}
+                      placeholder={
+                        hasQrisGateApiKey
+                          ? "•••••••••••••••• (Kosongkan jika tidak diubah)"
+                          : "qg_live_..."
+                      }
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      QRISGATE_WEBHOOK_SECRET{" "}
+                      {hasQrisGateWebhookSecret && (
+                        <span className="text-emerald-600 font-bold ml-1">(✓ Terpasang di Server)</span>
+                      )}
+                    </label>
+                    <input
+                      type="password"
+                      value={qrisGateWebhookSecret}
+                      onChange={(e) => setQrisGateWebhookSecret(e.target.value)}
+                      placeholder={
+                        hasQrisGateWebhookSecret
+                          ? "•••••••••••••••• (Kosongkan jika tidak diubah)"
+                          : "whsec_..."
+                      }
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-1.5 text-slate-700">
+                  <div className="font-bold text-emerald-900">Webhook Endpoint URL (Daftarkan di Dashboard QRISGate):</div>
+                  <code className="block font-mono bg-white px-3 py-2 rounded-lg border border-emerald-200 select-all text-xs">
+                    {typeof window !== "undefined" ? `${window.location.origin}/api/webhooks/qrisgate` : "/api/webhooks/qrisgate"}
+                  </code>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingQrisGateSettings}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
+                  >
+                    {savingQrisGateSettings ? "Menyimpan..." : "Simpan Pengaturan QRISGate"}
                   </button>
                 </div>
               </form>

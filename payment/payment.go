@@ -27,11 +27,12 @@ var db = sqldb.NewDatabase("payment", sqldb.DatabaseConfig{
 })
 
 type PaymentSuccessEvent struct {
-	OrderID       int64     `json:"order_id"`
-	PaymentMethod string    `json:"payment_method"`
-	Amount        int64     `json:"amount"`
-	TransactionID string    `json:"transaction_id"`
-	PaidAt        time.Time `json:"paid_at"`
+	OrderID         int64     `json:"order_id"`
+	ExternalOrderID string    `json:"external_order_id,omitempty"`
+	PaymentMethod   string    `json:"payment_method"`
+	Amount          int64     `json:"amount"`
+	TransactionID   string    `json:"transaction_id"`
+	PaidAt          time.Time `json:"paid_at"`
 }
 
 // PaymentSuccessTopic is published when a payment is verified (via Duitku or manual admin approval).
@@ -48,6 +49,7 @@ type BankAccount struct {
 type PaymentMethodsResponse struct {
 	ManualBanks        []BankAccount `json:"manual_banks"`
 	QRISImageUrl       string        `json:"qris_image_url"`
+	QRISGateActive     bool          `json:"qrisgate_active"`
 	DuitkuActive       bool          `json:"duitku_active"`
 	DuitkuSandbox      bool          `json:"duitku_sandbox"`
 	DuitkuMerchantCode string        `json:"duitku_merchant_code,omitempty"`
@@ -110,11 +112,12 @@ func getDuitkuConfig(ctx context.Context) (merchantCode, apiKey string, isSandbo
 	return
 }
 
-// Methods returns available payment options (Manual Transfer, QRIS, Duitku).
+// Methods returns available payment options (Manual Transfer, QRIS, QRISGate, Duitku).
 //
 //encore:api public method=GET path=/payment/methods
 func Methods(ctx context.Context) (*PaymentMethodsResponse, error) {
 	merchantCode, _, isSandbox, isEnabled, _ := getDuitkuConfig(ctx)
+	_, _, _, qrisGateEnabled := getQRISGateConfig(ctx)
 
 	return &PaymentMethodsResponse{
 		ManualBanks: []BankAccount{
@@ -130,6 +133,7 @@ func Methods(ctx context.Context) (*PaymentMethodsResponse, error) {
 			},
 		},
 		QRISImageUrl:       "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=00020101021226610016ID.CO.QRIS.WWW0118936009990000000001021000000000005204581253033605802ID5913MYSTORE6007BANDUNG61054011562070703A016304E8A5",
+		QRISGateActive:     qrisGateEnabled,
 		DuitkuActive:       isEnabled && merchantCode != "",
 		DuitkuSandbox:      isSandbox,
 		DuitkuMerchantCode: merchantCode,

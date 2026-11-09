@@ -59,12 +59,20 @@ export function CartPage({
     shipping_address: "",
     city: "",
     postal_code: "",
-    payment_method: "manual_transfer",
+    payment_method: "qrisgate",
+    qrisgate_channel: "QRIS" as "QRIS" | "BANK_TRANSFER",
+    bank_code: "BCA",
   });
 
-  // Jika Duitku dinonaktifkan di pengaturan, kembalikan pilihan metode bayar ke transfer manual
+  // Jika Duitku atau QRISGate dinonaktifkan di pengaturan, sesuaikan pilihan metode bayar
   useEffect(() => {
     if (checkoutForm.payment_method === "duitku" && paymentMethods && !paymentMethods.duitku_active) {
+      setCheckoutForm((prev) => ({
+        ...prev,
+        payment_method: paymentMethods.qrisgate_active !== false ? "qrisgate" : "manual_transfer",
+      }));
+    }
+    if (checkoutForm.payment_method === "qrisgate" && paymentMethods && paymentMethods.qrisgate_active === false) {
       setCheckoutForm((prev) => ({ ...prev, payment_method: "manual_transfer" }));
     }
   }, [paymentMethods, checkoutForm.payment_method]);
@@ -102,6 +110,37 @@ export function CartPage({
 
     setCheckoutLoading(true);
     try {
+      // Alur Utama QRISGate: Panggil POST /api/checkout (hitung harga dari DB + buat transaksi QRISGate)
+      if (checkoutForm.payment_method === "qrisgate") {
+        const res = await api.checkoutQRISGate({
+          customer_name: checkoutForm.customer_name,
+          customer_email: checkoutForm.customer_email,
+          customer_phone: checkoutForm.customer_phone,
+          shipping_address: hasPhysicalItems ? checkoutForm.shipping_address : undefined,
+          city: hasPhysicalItems ? checkoutForm.city : undefined,
+          postal_code: hasPhysicalItems ? checkoutForm.postal_code : undefined,
+          payment_method: checkoutForm.qrisgate_channel,
+          bank_code: checkoutForm.qrisgate_channel === "BANK_TRANSFER" ? checkoutForm.bank_code : undefined,
+          return_url: `${window.location.origin}/order/`,
+          items: cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
+        });
+
+        const createdOrder = res.order;
+        localStorage.setItem("customer_email", checkoutForm.customer_email);
+        localStorage.setItem("last_order_id", String(createdOrder.id));
+        onClearCart();
+
+        const targetCheckoutUrl = res.data?.checkout_url || res.checkout_url;
+        if (targetCheckoutUrl) {
+          // Redirect langsung ke halaman pembayaran resmi QRISGate (atau halaman /order/:id jika simulasi lokal)
+          window.location.href = targetCheckoutUrl;
+          return;
+        }
+
+        onOrderCreated(createdOrder);
+        return;
+      }
+
       const order = await api.createOrder({
         customer_name: checkoutForm.customer_name,
         customer_email: checkoutForm.customer_email,
@@ -479,6 +518,89 @@ export function CartPage({
                   </span>
 
                   <div className="space-y-2">
+                    {/* QRISGate Otomatis (QRIS + Transfer Bank Nominal Unik) */}
+                    {paymentMethods?.qrisgate_active !== false && (
+                      <div
+                        className={`rounded-xl border transition-all ${
+                          checkoutForm.payment_method === "qrisgate"
+                            ? "bg-[#ebe9e5] border-[#151514] shadow-2xs"
+                            : "border-[#ddd9d2] hover:bg-[#ebe9e5]/50"
+                        }`}
+                      >
+                        <label className="flex items-center gap-3 p-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="payment_method"
+                            value="qrisgate"
+                            checked={checkoutForm.payment_method === "qrisgate"}
+                            onChange={() => setCheckoutForm({ ...checkoutForm, payment_method: "qrisgate" })}
+                            className="accent-[#151514]"
+                          />
+                          <QrCodeIcon className="w-5 h-5 text-emerald-700" />
+                          <div className="flex-1 text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-[#151514]">QRISGate Otomatis (QRIS &amp; Bank)</span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                                Verifikasi Otomatis
+                              </span>
+                            </div>
+                            <span className="text-[11px] text-[#6b665c]">
+                              Tanpa MDR • Kode unik otomatis • Langsung lunas dalam hitungan detik
+                            </span>
+                          </div>
+                        </label>
+
+                        {checkoutForm.payment_method === "qrisgate" && (
+                          <div className="px-3 pb-3 pt-1 border-t border-[#ddd9d2]/70 space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setCheckoutForm({ ...checkoutForm, qrisgate_channel: "QRIS" })}
+                                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                                  checkoutForm.qrisgate_channel === "QRIS"
+                                    ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
+                                    : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
+                                }`}
+                              >
+                                QRIS Semua E-Wallet/Bank
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setCheckoutForm({ ...checkoutForm, qrisgate_channel: "BANK_TRANSFER" })}
+                                className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                                  checkoutForm.qrisgate_channel === "BANK_TRANSFER"
+                                    ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
+                                    : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
+                                }`}
+                              >
+                                Transfer Bank (Kode Unik)
+                              </button>
+                            </div>
+
+                            {checkoutForm.qrisgate_channel === "BANK_TRANSFER" && (
+                              <div className="flex items-center gap-2 pt-1">
+                                <span className="text-[11px] font-semibold text-[#6b665c]">Pilih Bank:</span>
+                                {["BCA", "MANDIRI", "BRI", "BNI"].map((code) => (
+                                  <button
+                                    key={code}
+                                    type="button"
+                                    onClick={() => setCheckoutForm({ ...checkoutForm, bank_code: code })}
+                                    className={`px-2.5 py-1 rounded-md text-[11px] font-bold border ${
+                                      checkoutForm.bank_code === code
+                                        ? "bg-[#151514] text-[#ebe9e5] border-[#151514]"
+                                        : "bg-[#f5f3ef] text-[#151514] border-[#ddd9d2]"
+                                    }`}
+                                  >
+                                    {code}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Transfer Bank */}
                     <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       checkoutForm.payment_method === "manual_transfer"

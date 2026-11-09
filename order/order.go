@@ -44,25 +44,30 @@ type OrderItem struct {
 }
 
 type Order struct {
-	ID              int64        `json:"id"`
-	UserID          *int64       `json:"user_id,omitempty"`
-	CustomerName    string       `json:"customer_name"`
-	CustomerEmail   string       `json:"customer_email"`
-	CustomerPhone   string       `json:"customer_phone"`
-	ShippingAddress string       `json:"shipping_address"`
-	City            string       `json:"city"`
-	PostalCode      string       `json:"postal_code"`
-	TotalAmount     int64        `json:"total_amount"`
-	ShippingCost    int64        `json:"shipping_cost"`
-	GrandTotal      int64        `json:"grand_total"`
-	Status          string       `json:"status"` // pending, paid, processing, shipped, completed, cancelled
-	PaymentMethod   string       `json:"payment_method"`
-	PaymentProofURL string       `json:"payment_proof_url,omitempty"`
-	TrackingNumber  string       `json:"tracking_number,omitempty"`
-	IsDigitalOnly   bool         `json:"is_digital_only"`
-	CreatedAt       time.Time    `json:"created_at"`
-	UpdatedAt       time.Time    `json:"updated_at"`
-	Items           []*OrderItem `json:"items,omitempty"`
+	ID                    int64        `json:"id"`
+	UserID                *int64       `json:"user_id,omitempty"`
+	ExternalOrderID       string       `json:"external_order_id,omitempty"`
+	QRISGateTransactionID string       `json:"qrisgate_transaction_id,omitempty"`
+	CustomerName          string       `json:"customer_name"`
+	CustomerEmail         string       `json:"customer_email"`
+	CustomerPhone         string       `json:"customer_phone"`
+	ShippingAddress       string       `json:"shipping_address"`
+	City                  string       `json:"city"`
+	PostalCode            string       `json:"postal_code"`
+	TotalAmount           int64        `json:"total_amount"`
+	ShippingCost          int64        `json:"shipping_cost"`
+	UniqueCode            int64        `json:"unique_code,omitempty"`
+	GrandTotal            int64        `json:"grand_total"`
+	Status                string       `json:"status"` // pending, paid, processing, shipped, completed, cancelled
+	PaymentMethod         string       `json:"payment_method"`
+	CheckoutURL           string       `json:"checkout_url,omitempty"`
+	PaymentProofURL       string       `json:"payment_proof_url,omitempty"`
+	TrackingNumber        string       `json:"tracking_number,omitempty"`
+	IsDigitalOnly         bool         `json:"is_digital_only"`
+	PaidAt                *time.Time   `json:"paid_at,omitempty"`
+	CreatedAt             time.Time    `json:"created_at"`
+	UpdatedAt             time.Time    `json:"updated_at"`
+	Items                 []*OrderItem `json:"items,omitempty"`
 }
 
 type CheckoutItem struct {
@@ -224,23 +229,277 @@ func Create(ctx context.Context, p *CreateOrderParams) (*Order, error) {
 	return &ord, nil
 }
 
+type CheckoutParams struct {
+	CustomerName    string          `json:"customer_name"`
+	CustomerEmail   string          `json:"customer_email"`
+	CustomerPhone   string          `json:"customer_phone"`
+	ShippingAddress string          `json:"shipping_address"`
+	City            string          `json:"city"`
+	PostalCode      string          `json:"postal_code"`
+	PaymentMethod   string          `json:"payment_method,omitempty"` // "QRIS" (default) or "BANK_TRANSFER"
+	BankCode        string          `json:"bank_code,omitempty"`      // e.g. "BCA", "MANDIRI", "BRI", "BNI"
+	ReturnURL       string          `json:"return_url,omitempty"`
+	Items           []*CheckoutItem `json:"items"`
+}
+
+type CheckoutData struct {
+	TransactionID   string `json:"transaction_id"`
+	ExternalOrderID string `json:"external_order_id"`
+	CheckoutURL     string `json:"checkout_url"`
+	BaseAmount      int64  `json:"base_amount"`
+	UniqueCode      int64  `json:"unique_code"`
+	TotalAmount     int64  `json:"total_amount"`
+	QRString        string `json:"qr_string,omitempty"`
+	ExpiresAt       string `json:"expires_at,omitempty"`
+}
+
+type CheckoutResponse struct {
+	Success         bool          `json:"success"`
+	Order           *Order        `json:"order"`
+	CheckoutURL     string        `json:"checkout_url"`
+	TransactionID   string        `json:"transaction_id"`
+	ExternalOrderID string        `json:"external_order_id"`
+	BaseAmount      int64         `json:"base_amount"`
+	UniqueCode      int64         `json:"unique_code"`
+	TotalAmount     int64         `json:"total_amount"`
+	QRString        string        `json:"qr_string,omitempty"`
+	ExpiresAt       string        `json:"expires_at,omitempty"`
+	Data            *CheckoutData `json:"data"`
+}
+
+// Checkout creates an order by calculating the exact integer IDR total from DATABASE prices,
+// calls QRISGate POST /api/v1/transactions, persists PENDING state with unique_code, and returns checkout_url.
+//
+//encore:api public method=POST path=/api/checkout
+func Checkout(ctx context.Context, p *CheckoutParams) (*CheckoutResponse, error) {
+	if len(p.Items) == 0 {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Keranjang belanja kosong"}
+	}
+
+	p.CustomerName = strings.TrimSpace(p.CustomerName)
+	p.CustomerEmail = strings.TrimSpace(p.CustomerEmail)
+	p.CustomerPhone = strings.TrimSpace(p.CustomerPhone)
+
+	if p.CustomerName == "" {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Nama pelanggan wajib diisi"}
+	}
+	if p.CustomerEmail == "" {
+		p.CustomerEmail = "guest@portalbun.co.id"
+	}
+	if p.CustomerPhone == "" {
+		p.CustomerPhone = "-"
+	}
+
+	var optionalUserID *int64
+	if usr, err := auth.Me(ctx); err == nil && usr != nil {
+		optionalUserID = &usr.ID
+	}
+
+	// 1 & 2. Calculate total strictly from DATABASE product prices (integer IDR, no rounding)
+	isDigitalOnly := true
+	var totalAmount int64
+	var orderItems []*OrderItem
+
+	for _, item := range p.Items {
+		if item.Quantity <= 0 {
+			item.Quantity = 1
+		}
+
+		pr, err := product.Get(ctx, strconv.FormatInt(item.ProductID, 10))
+		if err != nil {
+			return nil, &errs.Error{Code: errs.NotFound, Message: fmt.Sprintf("Produk #%d tidak ditemukan", item.ProductID)}
+		}
+
+		if len(pr.AffiliateLinks) > 0 {
+			return nil, &errs.Error{
+				Code:    errs.InvalidArgument,
+				Message: fmt.Sprintf("Produk \"%s\" merupakan produk afiliasi dan hanya dapat dibeli melalui tautan mitra", pr.Name),
+			}
+		}
+
+		if !pr.IsDigital {
+			isDigitalOnly = false
+			if pr.Stock < item.Quantity {
+				return nil, &errs.Error{
+					Code:    errs.FailedPrecondition,
+					Message: fmt.Sprintf("Stok %s tidak mencukupi (tersedia: %d)", pr.Name, pr.Stock),
+				}
+			}
+		}
+
+		// Integer IDR calculation without decimals or rounding
+		totalAmount += pr.Price * int64(item.Quantity)
+		orderItems = append(orderItems, &OrderItem{
+			ProductID:      pr.ID,
+			ProductName:    pr.Name,
+			Price:          pr.Price,
+			Quantity:       item.Quantity,
+			IsDigital:      pr.IsDigital,
+			DigitalFileURL: pr.DigitalFileURL,
+		})
+	}
+
+	var shippingCost int64 = 0
+	if !isDigitalOnly {
+		shippingCost = 15000 // Flat integer IDR shipping cost for physical goods
+		if strings.TrimSpace(p.ShippingAddress) == "" {
+			return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Alamat pengiriman wajib diisi untuk produk fisik"}
+		}
+	}
+
+	baseAmount := totalAmount + shippingCost
+	if baseAmount < 1 {
+		return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Nominal pesanan minimal Rp 1"}
+	}
+
+	paymentMethodLabel := "qrisgate"
+	qrisGateMethod := strings.ToUpper(strings.TrimSpace(p.PaymentMethod))
+	if qrisGateMethod != "BANK_TRANSFER" {
+		qrisGateMethod = "QRIS"
+	}
+
+	var ord Order
+	err := db.QueryRow(ctx, `
+		INSERT INTO orders (
+			user_id, customer_name, customer_email, customer_phone,
+			shipping_address, city, postal_code, total_amount, shipping_cost,
+			grand_total, status, payment_method, is_digital_only, created_at, updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, NOW(), NOW())
+		RETURNING id, user_id, customer_name, customer_email, customer_phone,
+		          shipping_address, city, postal_code, total_amount, shipping_cost,
+		          grand_total, status, payment_method, is_digital_only, created_at, updated_at
+	`, optionalUserID, p.CustomerName, p.CustomerEmail, p.CustomerPhone,
+		p.ShippingAddress, p.City, p.PostalCode, totalAmount, shippingCost,
+		baseAmount, paymentMethodLabel, isDigitalOnly).Scan(
+		&ord.ID, &ord.UserID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
+		&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost,
+		&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.IsDigitalOnly,
+		&ord.CreatedAt, &ord.UpdatedAt,
+	)
+	if err != nil {
+		return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+	}
+
+	externalOrderID := fmt.Sprintf("ORD-%d", ord.ID)
+
+	for _, oi := range orderItems {
+		oi.OrderID = ord.ID
+		err := db.QueryRow(ctx, `
+			INSERT INTO order_items (order_id, product_id, product_name, price, quantity, is_digital, digital_file_url)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			RETURNING id
+		`, ord.ID, oi.ProductID, oi.ProductName, oi.Price, oi.Quantity, oi.IsDigital, oi.DigitalFileURL).Scan(&oi.ID)
+		if err != nil {
+			return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
+		}
+
+		if !oi.IsDigital {
+			_ = product.AdjustStock(ctx, oi.ProductID, -oi.Quantity)
+		}
+	}
+	ord.Items = orderItems
+
+	returnURL := strings.TrimSpace(p.ReturnURL)
+	if returnURL == "" {
+		returnURL = fmt.Sprintf("/order/%d", ord.ID)
+	} else if strings.HasSuffix(returnURL, "/order/") {
+		returnURL = fmt.Sprintf("%s%d", returnURL, ord.ID)
+	}
+
+	// 3. Call QRISGate POST /api/v1/transactions via payment service
+	txResp, err := payment.CreateQRISGateTransaction(ctx, &payment.CreateQRISGateParams{
+		OrderID:         ord.ID,
+		ExternalOrderID: externalOrderID,
+		Amount:          baseAmount,
+		CustomerName:    ord.CustomerName,
+		CustomerEmail:   ord.CustomerEmail,
+		CustomerPhone:   ord.CustomerPhone,
+		PaymentMethod:   qrisGateMethod,
+		BankCode:        strings.ToUpper(strings.TrimSpace(p.BankCode)),
+		ReturnURL:       returnURL,
+	})
+	if err != nil {
+		// Rollback order to cancelled & restore stock if transaction creation fails
+		for _, oi := range orderItems {
+			if !oi.IsDigital {
+				_ = product.AdjustStock(ctx, oi.ProductID, oi.Quantity)
+			}
+		}
+		_, _ = db.Exec(ctx, `UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, ord.ID)
+		return nil, err
+	}
+
+	// 4. Save external_order_id, transaction_id, unique_code, exact total_amount (including unique_code), status PENDING
+	ord.ExternalOrderID = externalOrderID
+	ord.QRISGateTransactionID = txResp.TransactionID
+	ord.UniqueCode = txResp.UniqueCode
+	ord.GrandTotal = txResp.TotalAmount
+	ord.CheckoutURL = txResp.CheckoutURL
+
+	_, err = db.Exec(ctx, `
+		UPDATE orders
+		SET external_order_id = $1,
+		    qrisgate_transaction_id = $2,
+		    unique_code = $3,
+		    grand_total = $4,
+		    checkout_url = $5,
+		    status = 'pending',
+		    updated_at = NOW()
+		WHERE id = $6
+	`, ord.ExternalOrderID, ord.QRISGateTransactionID, ord.UniqueCode, ord.GrandTotal, ord.CheckoutURL, ord.ID)
+	if err != nil {
+		rlog.Error("failed to update order with QRISGate transaction metadata", "order_id", ord.ID, "err", err)
+	}
+
+	_, _ = OrderCreatedTopic.Publish(ctx, &OrderCreatedEvent{Order: &ord})
+
+	// 5. Return checkout_url and transaction details to frontend
+	data := &CheckoutData{
+		TransactionID:   txResp.TransactionID,
+		ExternalOrderID: externalOrderID,
+		CheckoutURL:     txResp.CheckoutURL,
+		BaseAmount:      txResp.BaseAmount,
+		UniqueCode:      txResp.UniqueCode,
+		TotalAmount:     txResp.TotalAmount,
+		QRString:        txResp.QRString,
+		ExpiresAt:       txResp.ExpiresAt,
+	}
+
+	return &CheckoutResponse{
+		Success:         true,
+		Order:           &ord,
+		CheckoutURL:     txResp.CheckoutURL,
+		TransactionID:   txResp.TransactionID,
+		ExternalOrderID: externalOrderID,
+		BaseAmount:      txResp.BaseAmount,
+		UniqueCode:      txResp.UniqueCode,
+		TotalAmount:     txResp.TotalAmount,
+		QRString:        txResp.QRString,
+		ExpiresAt:       txResp.ExpiresAt,
+		Data:            data,
+	}, nil
+}
+
 // Get returns order details by ID.
 //
 //encore:api public method=GET path=/orders/:id
 func Get(ctx context.Context, id int64) (*Order, error) {
 	var ord Order
 	err := db.QueryRow(ctx, `
-		SELECT id, user_id, customer_name, customer_email, customer_phone,
-		       shipping_address, city, postal_code, total_amount, shipping_cost,
-		       grand_total, status, payment_method, payment_proof_url, tracking_number,
-		       is_digital_only, created_at, updated_at
+		SELECT id, user_id, COALESCE(external_order_id, ''), COALESCE(qrisgate_transaction_id, ''),
+		       customer_name, customer_email, customer_phone,
+		       shipping_address, city, postal_code, total_amount, shipping_cost, COALESCE(unique_code, 0),
+		       grand_total, status, payment_method, COALESCE(checkout_url, ''), payment_proof_url, tracking_number,
+		       is_digital_only, paid_at, created_at, updated_at
 		FROM orders
 		WHERE id = $1
 	`, id).Scan(
-		&ord.ID, &ord.UserID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
-		&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost,
-		&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.PaymentProofURL, &ord.TrackingNumber,
-		&ord.IsDigitalOnly, &ord.CreatedAt, &ord.UpdatedAt,
+		&ord.ID, &ord.UserID, &ord.ExternalOrderID, &ord.QRISGateTransactionID,
+		&ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
+		&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost, &ord.UniqueCode,
+		&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.CheckoutURL, &ord.PaymentProofURL, &ord.TrackingNumber,
+		&ord.IsDigitalOnly, &ord.PaidAt, &ord.CreatedAt, &ord.UpdatedAt,
 	)
 	if errors.Is(err, sqldb.ErrNoRows) {
 		return nil, &errs.Error{Code: errs.NotFound, Message: "Order not found"}
@@ -286,19 +545,21 @@ func List(ctx context.Context) (*ListOrdersResponse, error) {
 	var rows *sqldb.Rows
 	if usr.Role == "admin" {
 		rows, err = db.Query(ctx, `
-			SELECT id, user_id, customer_name, customer_email, customer_phone,
-			       shipping_address, city, postal_code, total_amount, shipping_cost,
-			       grand_total, status, payment_method, payment_proof_url, tracking_number,
-			       is_digital_only, created_at, updated_at
+			SELECT id, user_id, COALESCE(external_order_id, ''), COALESCE(qrisgate_transaction_id, ''),
+			       customer_name, customer_email, customer_phone,
+			       shipping_address, city, postal_code, total_amount, shipping_cost, COALESCE(unique_code, 0),
+			       grand_total, status, payment_method, COALESCE(checkout_url, ''), payment_proof_url, tracking_number,
+			       is_digital_only, paid_at, created_at, updated_at
 			FROM orders
 			ORDER BY id DESC LIMIT 100
 		`)
 	} else {
 		rows, err = db.Query(ctx, `
-			SELECT id, user_id, customer_name, customer_email, customer_phone,
-			       shipping_address, city, postal_code, total_amount, shipping_cost,
-			       grand_total, status, payment_method, payment_proof_url, tracking_number,
-			       is_digital_only, created_at, updated_at
+			SELECT id, user_id, COALESCE(external_order_id, ''), COALESCE(qrisgate_transaction_id, ''),
+			       customer_name, customer_email, customer_phone,
+			       shipping_address, city, postal_code, total_amount, shipping_cost, COALESCE(unique_code, 0),
+			       grand_total, status, payment_method, COALESCE(checkout_url, ''), payment_proof_url, tracking_number,
+			       is_digital_only, paid_at, created_at, updated_at
 			FROM orders
 			WHERE user_id = $1 OR customer_email = $2
 			ORDER BY id DESC LIMIT 50
@@ -314,10 +575,11 @@ func List(ctx context.Context) (*ListOrdersResponse, error) {
 	for rows.Next() {
 		var ord Order
 		if err := rows.Scan(
-			&ord.ID, &ord.UserID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
-			&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost,
-			&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.PaymentProofURL, &ord.TrackingNumber,
-			&ord.IsDigitalOnly, &ord.CreatedAt, &ord.UpdatedAt,
+			&ord.ID, &ord.UserID, &ord.ExternalOrderID, &ord.QRISGateTransactionID,
+			&ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
+			&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost, &ord.UniqueCode,
+			&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.CheckoutURL, &ord.PaymentProofURL, &ord.TrackingNumber,
+			&ord.IsDigitalOnly, &ord.PaidAt, &ord.CreatedAt, &ord.UpdatedAt,
 		); err != nil {
 			return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
 		}
@@ -511,29 +773,53 @@ func UpdateStatus(ctx context.Context, id int64, p *UpdateStatusParams) error {
 	return nil
 }
 
-// MarkPaid marks an order as paid and completes digital delivery.
+// MarkPaid marks an order as paid, records paid_at, and triggers fulfillment (digital delivery + notifications).
 func MarkPaid(ctx context.Context, orderID int64) error {
+	return MarkPaidWithEvent(ctx, orderID, "", time.Now())
+}
+
+// MarkPaidWithEvent finds an order by orderID or externalOrderID, sets status to paid, saves paid_at, and runs fulfillment.
+func MarkPaidWithEvent(ctx context.Context, orderID int64, externalOrderID string, paidAt time.Time) error {
+	if paidAt.IsZero() {
+		paidAt = time.Now()
+	}
+
 	var ord Order
-	err := db.QueryRow(ctx, `
-		SELECT id, customer_name, customer_email, customer_phone, status, grand_total, COALESCE(tracking_number, '')
-		FROM orders WHERE id = $1
-	`, orderID).Scan(&ord.ID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone, &ord.Status, &ord.GrandTotal, &ord.TrackingNumber)
+	var err error
+	if orderID > 0 {
+		err = db.QueryRow(ctx, `
+			SELECT id, customer_name, customer_email, customer_phone, status, grand_total, COALESCE(tracking_number, '')
+			FROM orders WHERE id = $1
+		`, orderID).Scan(&ord.ID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone, &ord.Status, &ord.GrandTotal, &ord.TrackingNumber)
+	} else if externalOrderID != "" {
+		err = db.QueryRow(ctx, `
+			SELECT id, customer_name, customer_email, customer_phone, status, grand_total, COALESCE(tracking_number, '')
+			FROM orders WHERE external_order_id = $1
+		`, externalOrderID).Scan(&ord.ID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone, &ord.Status, &ord.GrandTotal, &ord.TrackingNumber)
+	} else {
+		return &errs.Error{Code: errs.InvalidArgument, Message: "order_id or external_order_id required"}
+	}
 	if err != nil {
 		return err
+	}
+
+	// Idempotent: if already paid/completed, do not re-trigger fulfillment
+	if ord.Status == "paid" || ord.Status == "processing" || ord.Status == "shipped" || ord.Status == "completed" {
+		return nil
 	}
 
 	_, err = db.Exec(ctx, `
 		UPDATE orders
-		SET status = 'paid', updated_at = NOW()
+		SET status = 'paid', paid_at = $2, updated_at = NOW()
 		WHERE id = $1 AND status = 'pending'
-	`, orderID)
+	`, ord.ID, paidAt)
 	if err != nil {
 		return err
 	}
-	rlog.Info("order marked as paid", "order_id", orderID)
+	rlog.Info("order marked as paid", "order_id", ord.ID, "external_order_id", externalOrderID, "paid_at", paidAt)
 
 	_, _ = OrderStatusChangedTopic.Publish(ctx, &OrderStatusChangedEvent{
-		OrderID:        orderID,
+		OrderID:        ord.ID,
 		CustomerName:   ord.CustomerName,
 		CustomerEmail:  ord.CustomerEmail,
 		CustomerPhone:  ord.CustomerPhone,
@@ -541,7 +827,7 @@ func MarkPaid(ctx context.Context, orderID int64) error {
 		NewStatus:      "paid",
 		TrackingNumber: ord.TrackingNumber,
 		GrandTotal:     ord.GrandTotal,
-		ChangedAt:      time.Now(),
+		ChangedAt:      paidAt,
 	})
 
 	return nil
@@ -686,10 +972,11 @@ func AdminDashboard(ctx context.Context) (*DashboardStatsResponse, error) {
 
 	// Recent 10 orders
 	recRows, err := db.Query(ctx, `
-		SELECT id, user_id, customer_name, customer_email, customer_phone,
-		       shipping_address, city, postal_code, total_amount, shipping_cost,
-		       grand_total, status, payment_method, payment_proof_url, tracking_number,
-		       is_digital_only, created_at, updated_at
+		SELECT id, user_id, COALESCE(external_order_id, ''), COALESCE(qrisgate_transaction_id, ''),
+		       customer_name, customer_email, customer_phone,
+		       shipping_address, city, postal_code, total_amount, shipping_cost, COALESCE(unique_code, 0),
+		       grand_total, status, payment_method, COALESCE(checkout_url, ''), payment_proof_url, tracking_number,
+		       is_digital_only, paid_at, created_at, updated_at
 		FROM orders
 		ORDER BY id DESC LIMIT 10
 	`)
@@ -698,10 +985,11 @@ func AdminDashboard(ctx context.Context) (*DashboardStatsResponse, error) {
 		for recRows.Next() {
 			var ord Order
 			if err := recRows.Scan(
-				&ord.ID, &ord.UserID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
-				&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost,
-				&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.PaymentProofURL, &ord.TrackingNumber,
-				&ord.IsDigitalOnly, &ord.CreatedAt, &ord.UpdatedAt,
+				&ord.ID, &ord.UserID, &ord.ExternalOrderID, &ord.QRISGateTransactionID,
+				&ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
+				&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost, &ord.UniqueCode,
+				&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.CheckoutURL, &ord.PaymentProofURL, &ord.TrackingNumber,
+				&ord.IsDigitalOnly, &ord.PaidAt, &ord.CreatedAt, &ord.UpdatedAt,
 			); err == nil {
 				s.RecentOrders = append(s.RecentOrders, &ord)
 			}
@@ -799,6 +1087,6 @@ var _ = cron.NewJob("cancel-unpaid-orders", cron.JobConfig{
 // Subscribe to payment success events to mark orders paid
 var _ = pubsub.NewSubscription(payment.PaymentSuccessTopic, "mark-order-paid", pubsub.SubscriptionConfig[*payment.PaymentSuccessEvent]{
 	Handler: func(ctx context.Context, e *payment.PaymentSuccessEvent) error {
-		return MarkPaid(ctx, e.OrderID)
+		return MarkPaidWithEvent(ctx, e.OrderID, e.ExternalOrderID, e.PaidAt)
 	},
 })

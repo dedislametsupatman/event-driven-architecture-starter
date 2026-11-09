@@ -44,6 +44,8 @@ export interface OrderItem {
 export interface Order {
   id: number;
   user_id?: number;
+  external_order_id?: string;
+  qrisgate_transaction_id?: string;
   customer_name: string;
   customer_email: string;
   customer_phone: string;
@@ -52,12 +54,15 @@ export interface Order {
   postal_code: string;
   total_amount: number;
   shipping_cost: number;
+  unique_code?: number;
   grand_total: number;
   status: "pending" | "paid" | "processing" | "shipped" | "completed" | "cancelled";
-  payment_method: "manual_transfer" | "qris" | "duitku" | "midtrans";
+  payment_method: "qrisgate" | "manual_transfer" | "qris" | "duitku" | "midtrans" | string;
+  checkout_url?: string;
   payment_proof_url?: string;
   tracking_number?: string;
   is_digital_only: boolean;
+  paid_at?: string;
   created_at: string;
   updated_at: string;
   items?: OrderItem[];
@@ -72,11 +77,59 @@ export interface BankAccount {
 export interface PaymentMethods {
   manual_banks: BankAccount[];
   qris_image_url: string;
+  qrisgate_active?: boolean;
   duitku_active: boolean;
   duitku_sandbox: boolean;
   duitku_merchant_code?: string;
   midtrans_active?: boolean;
   midtrans_client_key?: string;
+}
+
+export interface QRISGateSettings {
+  base_url: string;
+  api_key?: string;
+  webhook_secret?: string;
+  has_api_key: boolean;
+  has_webhook_secret: boolean;
+  enabled: boolean;
+  webhook_endpoint: string;
+}
+
+export interface QRISGateCheckoutResponse {
+  success: boolean;
+  order: Order;
+  checkout_url: string;
+  transaction_id: string;
+  external_order_id: string;
+  base_amount: number;
+  unique_code: number;
+  total_amount: number;
+  qr_string?: string;
+  expires_at?: string;
+  data: {
+    transaction_id: string;
+    external_order_id: string;
+    checkout_url: string;
+    base_amount: number;
+    unique_code: number;
+    total_amount: number;
+    qr_string?: string;
+    expires_at?: string;
+  };
+}
+
+export interface QRISGateTransactionStatus {
+  transaction_id: string;
+  external_order_id: string;
+  order_id: number;
+  base_amount: number;
+  unique_code: number;
+  total_amount: number;
+  status: "PENDING" | "PAID" | "EXPIRED" | "CANCELLED" | string;
+  checkout_url?: string;
+  qr_string?: string;
+  expires_at?: string;
+  paid_at?: string;
 }
 
 export interface DuitkuSettings {
@@ -195,6 +248,41 @@ export const api = {
   },
 
   // Orders
+  async checkoutQRISGate(data: {
+    customer_name: string;
+    customer_email: string;
+    customer_phone: string;
+    shipping_address?: string;
+    city?: string;
+    postal_code?: string;
+    payment_method?: "QRIS" | "BANK_TRANSFER";
+    bank_code?: string;
+    return_url?: string;
+    items: { product_id: number; quantity: number }[];
+  }) {
+    return request<QRISGateCheckoutResponse>("/api/checkout", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async pollQRISGateTransaction(idOrOrderId: string | number) {
+    return request<{ success: boolean; data: QRISGateTransactionStatus }>(
+      `/api/v1/transactions/${encodeURIComponent(String(idOrOrderId))}`
+    );
+  },
+
+  async getQRISGateSettings() {
+    return request<QRISGateSettings>("/payment/qrisgate/settings");
+  },
+
+  async updateQRISGateSettings(data: Partial<QRISGateSettings>) {
+    return request<QRISGateSettings>("/payment/qrisgate/settings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   async createOrder(data: {
     customer_name: string;
     customer_email: string;

@@ -41,7 +41,7 @@ export default function App() {
       const hash = window.location.hash.toLowerCase();
       if (path.startsWith("/cms") || hash === "#/cms" || hash === "#cms") return "cms";
       if (path.startsWith("/cart") || hash === "#/cart" || hash === "#cart") return "cart";
-      if (path.startsWith("/orders") || hash === "#/orders" || hash === "#orders") return "orders";
+      if (path.startsWith("/order/") || path.startsWith("/orders") || hash === "#/orders" || hash === "#orders") return "orders";
       if (path.startsWith("/profile") || hash === "#/profile" || hash === "#profile") return "profile";
       if (path.startsWith("/manga") || hash === "#/manga" || hash === "#manga") return "manga";
     }
@@ -50,8 +50,13 @@ export default function App() {
 
   const [activeOrderId, setActiveOrderId] = useState<number | string | null>(() => {
     if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      const orderMatch = path.match(/^\/orders?\/([^/?#]+)/i);
+      if (orderMatch && orderMatch[1]) {
+        return orderMatch[1];
+      }
       const params = new URLSearchParams(window.location.search);
-      const id = params.get("id");
+      const id = params.get("id") || params.get("order_id");
       return id ? id : null;
     }
     return null;
@@ -66,11 +71,16 @@ export default function App() {
         setViewMode("cms");
       } else if (path.startsWith("/cart") || hash === "#/cart" || hash === "#cart") {
         setViewMode("cart");
-      } else if (path.startsWith("/orders") || hash === "#/orders" || hash === "#orders") {
+      } else if (path.startsWith("/order/") || path.startsWith("/orders") || hash === "#/orders" || hash === "#orders") {
         setViewMode("orders");
-        const params = new URLSearchParams(window.location.search);
-        const id = params.get("id");
-        if (id) setActiveOrderId(id);
+        const orderMatch = window.location.pathname.match(/^\/orders?\/([^/?#]+)/i);
+        if (orderMatch && orderMatch[1]) {
+          setActiveOrderId(orderMatch[1]);
+        } else {
+          const params = new URLSearchParams(window.location.search);
+          const id = params.get("id") || params.get("order_id");
+          if (id) setActiveOrderId(id);
+        }
       } else if (path.startsWith("/profile") || hash === "#/profile" || hash === "#profile") {
         setViewMode("profile");
       } else if (path.startsWith("/manga") || hash === "#/manga" || hash === "#manga") {
@@ -548,7 +558,7 @@ export default function App() {
             onClearCart={() => setCart([])}
             onOrderCreated={(order) => {
               setActiveOrderId(order.id);
-              navigateTo("orders", `/orders?id=${order.id}`);
+              navigateTo("orders", `/order/${order.id}`);
             }}
             onNavigate={navigateTo}
             showToast={triggerToast}

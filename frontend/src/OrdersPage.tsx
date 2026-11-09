@@ -111,6 +111,86 @@ export function OrdersPage({
     }
   }, [currentUser, initialOrderId]);
 
+  // Tugas 3: Polling GET /api/v1/transactions/{id} tiap 3 detik selama PENDING, berhenti setelah 15 menit (900 detik)
+  const [pollingActive, setPollingActive] = useState(false);
+  const [pollingSecondsLeft, setPollingSecondsLeft] = useState(900);
+
+  useEffect(() => {
+    if (!selectedOrder || selectedOrder.status !== "pending") {
+      setPollingActive(false);
+      return;
+    }
+
+    const txIdentifier =
+      selectedOrder.qrisgate_transaction_id ||
+      selectedOrder.external_order_id ||
+      selectedOrder.id;
+
+    // Hitung sisa waktu dari 15 menit sejak pesanan dibuat (atau mulai timer 15 menit penuh)
+    const createdMs = new Date(selectedOrder.created_at).getTime();
+    const maxWindowMs = 15 * 60 * 1000; // 15 menit
+    const elapsedMs = Date.now() - createdMs;
+    const initialRemainingSec =
+      elapsedMs >= 0 && elapsedMs < maxWindowMs
+        ? Math.max(0, Math.floor((maxWindowMs - elapsedMs) / 1000))
+        : 900;
+
+    if (initialRemainingSec <= 0) {
+      setPollingActive(false);
+      setPollingSecondsLeft(0);
+      return;
+    }
+
+    setPollingActive(true);
+    setPollingSecondsLeft(initialRemainingSec);
+    const startedAt = Date.now();
+
+    const pollOnce = async () => {
+      try {
+        const res = await api.pollQRISGateTransaction(txIdentifier);
+        const statusUpper = (res.data?.status || "").toUpperCase();
+        if (statusUpper === "PAID") {
+          setPollingActive(false);
+          showToast("Pembayaran QRISGate terverifikasi! Pesanan Anda telah lunas.");
+          await loadSpecificOrder(selectedOrder.id);
+          if (currentUser) loadUserOrders();
+        } else if (statusUpper === "EXPIRED" || statusUpper === "CANCELLED") {
+          setPollingActive(false);
+          await loadSpecificOrder(selectedOrder.id);
+        }
+      } catch {
+        // Fallback: juga cek status order lokal bila transaksi QRISGate belum ada
+        try {
+          const ord = await api.getOrder(selectedOrder.id);
+          if (ord.status !== "pending") {
+            setSelectedOrder(ord);
+            setPollingActive(false);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    const pollInterval = setInterval(() => {
+      const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
+      const nextRemaining = Math.max(0, initialRemainingSec - elapsedSec);
+      setPollingSecondsLeft(nextRemaining);
+
+      if (nextRemaining <= 0) {
+        setPollingActive(false);
+        clearInterval(pollInterval);
+        return;
+      }
+
+      pollOnce();
+    }, 3000);
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [selectedOrder?.id, selectedOrder?.status, selectedOrder?.qrisgate_transaction_id]);
+
   const loadUserOrders = async () => {
     setLoadingOrders(true);
     try {
@@ -524,8 +604,14 @@ export function OrdersPage({
                       {selectedOrder.shipping_cost > 0 ? formatIDR(selectedOrder.shipping_cost) : "Gratis (Digital / Promo)"}
                     </span>
                   </div>
+                  {selectedOrder.unique_code && selectedOrder.unique_code > 0 ? (
+                    <div className="flex justify-between text-emerald-700 font-semibold">
+                      <span>Kode Unik Verifikasi Otomatis:</span>
+                      <span className="num-tabular">+{formatIDR(selectedOrder.unique_code)}</span>
+                    </div>
+                  ) : null}
                   <div className="flex justify-between text-sm font-extrabold text-slate-900 pt-2 border-t border-slate-100">
-                    <span>Total Pembayaran:</span>
+                    <span>Total Pembayaran (Tepat):</span>
                     <span className="text-blue-600 text-base num-tabular">{formatIDR(selectedOrder.grand_total)}</span>
                   </div>
                 </div>
@@ -589,10 +675,15 @@ export function OrdersPage({
                   {/* Nominal Tagihan */}
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
                     <div>
-                      <span className="text-xs text-amber-800 font-medium">Jumlah yang Harus Ditransfer:</span>
+                      <span className="text-xs text-amber-800 font-medium">
+                        Jumlah Tepat yang WAJIB Dibayar {selectedOrder.unique_code ? `(Termasuk Kode Unik +Rp ${selectedOrder.unique_code})` : ""}:
+                      </span>
                       <p className="text-xl font-black text-amber-950 num-tabular">
                         {formatIDR(selectedOrder.grand_total)}
                       </p>
+                      <span className="text-[11px] text-amber-800">
+                        Jangan dibulatkan agar pembayaran terdeteksi otomatis.
+                      </span>
                     </div>
                     <button
                       onClick={() => copyToClipboard(String(selectedOrder.grand_total), "Nominal transfer")}
@@ -602,6 +693,44 @@ export function OrdersPage({
                       Salin
                     </button>
                   </div>
+
+                  {/* QRISGate Redirect & Live Polling Status */}
+                  {selectedOrder.payment_method === "qrisgate" && (
+                    <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <QrCodeIcon className="w-5 h-5 text-emerald-700" />
+                          <span className="text-xs font-bold text-slate-900">
+                            QRISGate Automatic Payment
+                          </span>
+                        </div>
+                        {pollingActive && (
+                          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 bg-white px-2.5 py-1 rounded-full border border-emerald-200">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                            Auto-cek 3 dtk ({Math.floor(pollingSecondsLeft / 60)}:
+                            {String(pollingSecondsLeft % 60).padStart(2, "0")})
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Halaman QR dan instruksi transfer disediakan langsung oleh <strong>QRISGate</strong> (berlaku 15 menit). Pastikan membayar tepat sebesar{" "}
+                        <strong className="text-slate-900">{formatIDR(selectedOrder.grand_total)}</strong>.
+                      </p>
+
+                      {selectedOrder.checkout_url && (
+                        <a
+                          href={selectedOrder.checkout_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-3 px-4 bg-[#151514] hover:bg-[#2d2a25] text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center justify-center gap-2"
+                        >
+                          <span>Buka Halaman Pembayaran QRISGate</span>
+                          <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+                        </a>
+                      )}
+                    </div>
+                  )}
 
                   {/* Manual Transfer Accounts */}
                   {selectedOrder.payment_method === "manual_transfer" && (
