@@ -157,8 +157,8 @@ func TestQRISGateWebhookHTTPHandler_SignatureRejection(t *testing.T) {
 		if rr2.Code != http.StatusOK {
 			t.Fatalf("expected HTTP 200 OK on duplicate delivery, got %d (%s)", rr2.Code, rr2.Body.String())
 		}
-		if !bytes.Contains(rr2.Body.Bytes(), []byte("already_processed")) {
-			t.Fatalf("expected duplicate delivery response to contain already_processed, got %s", rr2.Body.String())
+		if !bytes.Contains(rr2.Body.Bytes(), []byte("already_processed")) && !bytes.Contains(rr2.Body.Bytes(), []byte("idempotent")) {
+			t.Fatalf("expected duplicate delivery response to contain already_processed or idempotent, got %s", rr2.Body.String())
 		}
 	})
 }

@@ -541,7 +541,7 @@ func handleQRISGateWebhook(w http.ResponseWriter, req *http.Request) {
 			// Event already processed — return 200 OK idempotently
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"received":true,"idempotent":true}`))
+			_, _ = w.Write([]byte(`{"received":true,"idempotent":true,"status":"already_processed"}`))
 			return
 		}
 	}
