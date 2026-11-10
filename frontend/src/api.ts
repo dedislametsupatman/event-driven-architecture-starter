@@ -54,6 +54,9 @@ export interface Order {
   postal_code: string;
   total_amount: number;
   shipping_cost: number;
+  courier_name?: string;
+  courier_service?: string;
+  courier_etd?: string;
   unique_code?: number;
   grand_total: number;
   status: "pending" | "paid" | "processing" | "shipped" | "completed" | "cancelled";
@@ -83,6 +86,36 @@ export interface PaymentMethods {
   duitku_merchant_code?: string;
   midtrans_active?: boolean;
   midtrans_client_key?: string;
+}
+
+export interface BiteshipSettings {
+  biteship_api_key: string;
+  biteship_origin_postal_code: string;
+  biteship_origin_address: string;
+  biteship_couriers: string;
+  biteship_enabled: boolean;
+  default_flat_shipping_cost: number;
+}
+
+export interface CourierRate {
+  courier_name: string;
+  courier_code: string;
+  courier_service_name: string;
+  courier_service_code: string;
+  description: string;
+  duration: string;
+  shipment_duration_range: string;
+  shipment_duration_unit: string;
+  price: number;
+  is_fallback: boolean;
+}
+
+export interface GetRatesResponse {
+  success: boolean;
+  origin: string;
+  rates: CourierRate[];
+  is_fallback: boolean;
+  message?: string;
 }
 
 export interface QRISGateSettings {
@@ -255,6 +288,10 @@ export const api = {
     shipping_address?: string;
     city?: string;
     postal_code?: string;
+    courier_name?: string;
+    courier_service?: string;
+    courier_etd?: string;
+    shipping_cost?: number;
     payment_method?: "QRIS" | "BANK_TRANSFER";
     bank_code?: string;
     return_url?: string;
@@ -283,6 +320,37 @@ export const api = {
     });
   },
 
+  // Shipping & Biteship
+  async getShippingSettings() {
+    return request<BiteshipSettings>("/shipping/settings");
+  },
+
+  async updateShippingSettings(data: Partial<BiteshipSettings>) {
+    return request<BiteshipSettings>("/shipping/settings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  async testBiteship() {
+    return request<{ success: boolean; message: string; couriers_count?: number }>(
+      "/shipping/biteship/test",
+      {
+        method: "POST",
+      }
+    );
+  },
+
+  async getShippingRates(data: {
+    destination_postal_code: string;
+    items: { product_id: number; quantity: number; weight_grams?: number; price?: number; name?: string }[];
+  }) {
+    return request<GetRatesResponse>("/shipping/rates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
   async createOrder(data: {
     customer_name: string;
     customer_email: string;
@@ -290,6 +358,10 @@ export const api = {
     shipping_address?: string;
     city?: string;
     postal_code?: string;
+    courier_name?: string;
+    courier_service?: string;
+    courier_etd?: string;
+    shipping_cost?: number;
     payment_method: string;
     items: { product_id: number; quantity: number }[];
   }) {

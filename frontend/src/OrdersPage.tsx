@@ -601,7 +601,10 @@ export function OrdersPage({
                     <span className="font-semibold text-slate-900 num-tabular">{formatIDR(selectedOrder.total_amount)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Ongkos Kirim:</span>
+                    <span>
+                      Ongkos Kirim
+                      {selectedOrder.courier_name ? ` (${selectedOrder.courier_name} ${selectedOrder.courier_service || ""})` : ""}:
+                    </span>
                     <span className="font-semibold text-slate-900 num-tabular">
                       {selectedOrder.shipping_cost > 0 ? formatIDR(selectedOrder.shipping_cost) : "Gratis (Digital / Promo)"}
                     </span>
@@ -642,6 +645,36 @@ export function OrdersPage({
                         {selectedOrder.shipping_address}, {selectedOrder.city} {selectedOrder.postal_code}
                       </p>
                     </div>
+                    {selectedOrder.courier_name && (
+                      <div className="sm:col-span-2 bg-amber-50/70 border border-amber-200 p-3 rounded-xl flex items-center justify-between text-xs">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">Kurir &amp; Ekspedisi:</span>
+                          <p className="font-bold text-amber-950 text-sm mt-0.5">
+                            {selectedOrder.courier_name} {selectedOrder.courier_service ? `(${selectedOrder.courier_service})` : ""}
+                            {selectedOrder.courier_etd ? ` • Estimasi ${selectedOrder.courier_etd}` : ""}
+                          </p>
+                        </div>
+                        <span className="text-xs font-black text-amber-900 num-tabular bg-white px-2.5 py-1 rounded-lg border border-amber-200">
+                          {formatIDR(selectedOrder.shipping_cost)}
+                        </span>
+                      </div>
+                    )}
+                    {selectedOrder.courier_name && (
+                      <div className="sm:col-span-2 bg-amber-50/80 border border-amber-200 p-3 rounded-xl flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">Kurir Pengiriman:</span>
+                          <p className="font-bold text-amber-950 text-sm mt-0.5">
+                            {selectedOrder.courier_name} {selectedOrder.courier_service ? `• ${selectedOrder.courier_service}` : ""}
+                          </p>
+                        </div>
+                        {selectedOrder.courier_etd && (
+                          <div className="text-right">
+                            <span className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">Estimasi Waktu:</span>
+                            <p className="font-semibold text-amber-900 text-xs mt-0.5">{selectedOrder.courier_etd}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {selectedOrder.tracking_number && (
                       <div className="sm:col-span-2 bg-sky-50 border border-sky-200 p-3 rounded-xl flex items-center justify-between">
                         <div>
@@ -1498,7 +1531,10 @@ export function OrdersPage({
                     <span className="num-tabular font-bold">{formatIDR(selectedOrder.total_amount)}</span>
                   </div>
                   <div className="flex justify-between text-slate-600">
-                    <span>Ongkos Kirim:</span>
+                    <span>
+                      Ongkos Kirim
+                      {selectedOrder.courier_name ? ` (${selectedOrder.courier_name} ${selectedOrder.courier_service || ""})` : ""}:
+                    </span>
                     <span className="num-tabular">
                       {selectedOrder.shipping_cost > 0 ? formatIDR(selectedOrder.shipping_cost) : "Gratis / Rp 0"}
                     </span>

@@ -6,6 +6,7 @@ import {
   Order,
   PaymentMethods,
   User,
+  CourierRate,
 } from "./api";
 import {
   ShoppingBagIcon,
@@ -71,14 +72,63 @@ export function CartPage({
     }
   }, [checkoutForm.payment_method]);
 
+  const [courierRates, setCourierRates] = useState<CourierRate[]>([]);
+  const [selectedCourier, setSelectedCourier] = useState<CourierRate | null>(null);
+  const [ratesLoading, setRatesLoading] = useState(false);
+  const [ratesMessage, setRatesMessage] = useState<string | null>(null);
+
   const hasPhysicalItems = cart.some((item) => !item.product.is_digital);
   const cartSubtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const shippingCost = hasPhysicalItems ? 15000 : 0;
+  const shippingCost = hasPhysicalItems ? (selectedCourier ? selectedCourier.price : 15000) : 0;
   const grandTotal = cartSubtotal + shippingCost;
   const totalWeightGrams = cart.reduce(
     (sum, item) => sum + (item.product.is_digital ? 0 : item.product.weight_grams * item.quantity),
     0
   );
+
+  // Ambil opsi kurir Biteship saat kode pos diisi dan ada produk fisik
+  useEffect(() => {
+    if (!hasPhysicalItems || cart.length === 0) {
+      setCourierRates([]);
+      setSelectedCourier(null);
+      return;
+    }
+
+    const postalCode = checkoutForm.postal_code.trim();
+    const timer = setTimeout(async () => {
+      setRatesLoading(true);
+      try {
+        const res = await api.getShippingRates({
+          destination_postal_code: postalCode,
+          items: cart.map((i) => ({
+            product_id: i.product.id,
+            quantity: i.quantity,
+            weight_grams: i.product.weight_grams,
+            price: i.product.price,
+            name: i.product.name,
+          })),
+        });
+
+        if (res && res.rates && res.rates.length > 0) {
+          setCourierRates(res.rates);
+          setRatesMessage(res.message || null);
+          setSelectedCourier((prev) => {
+            if (!prev) return res.rates[0];
+            const found = res.rates.find(
+              (r) => r.courier_code === prev.courier_code && r.courier_service_code === prev.courier_service_code
+            );
+            return found || res.rates[0];
+          });
+        }
+      } catch (err: any) {
+        console.warn("Gagal mengecek tarif ekspedisi:", err);
+      } finally {
+        setRatesLoading(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [hasPhysicalItems, cart, checkoutForm.postal_code]);
 
   const formatIDR = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
@@ -113,6 +163,10 @@ export function CartPage({
           shipping_address: hasPhysicalItems ? checkoutForm.shipping_address : undefined,
           city: hasPhysicalItems ? checkoutForm.city : undefined,
           postal_code: hasPhysicalItems ? checkoutForm.postal_code : undefined,
+          courier_name: hasPhysicalItems && selectedCourier ? selectedCourier.courier_name : undefined,
+          courier_service: hasPhysicalItems && selectedCourier ? selectedCourier.courier_service_name : undefined,
+          courier_etd: hasPhysicalItems && selectedCourier ? selectedCourier.duration : undefined,
+          shipping_cost: hasPhysicalItems ? shippingCost : 0,
           payment_method: checkoutForm.qrisgate_channel,
           bank_code: checkoutForm.qrisgate_channel === "BANK_TRANSFER" ? checkoutForm.bank_code : undefined,
           return_url: `${window.location.origin}/order/`,
@@ -142,6 +196,10 @@ export function CartPage({
         shipping_address: hasPhysicalItems ? checkoutForm.shipping_address : undefined,
         city: hasPhysicalItems ? checkoutForm.city : undefined,
         postal_code: hasPhysicalItems ? checkoutForm.postal_code : undefined,
+        courier_name: hasPhysicalItems && selectedCourier ? selectedCourier.courier_name : undefined,
+        courier_service: hasPhysicalItems && selectedCourier ? selectedCourier.courier_service_name : undefined,
+        courier_etd: hasPhysicalItems && selectedCourier ? selectedCourier.duration : undefined,
+        shipping_cost: hasPhysicalItems ? shippingCost : 0,
         payment_method: checkoutForm.payment_method,
         items: cart.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
       });
@@ -488,12 +546,86 @@ export function CartPage({
                         <input
                           type="text"
                           required
-                          placeholder="Kode Pos"
+                          placeholder="Kode Pos (5 digit)"
                           value={checkoutForm.postal_code}
                           onChange={(e) => setCheckoutForm({ ...checkoutForm, postal_code: e.target.value })}
                           className="w-full bg-[#ebe9e5] border border-[#ddd9d2] rounded-xl px-3.5 py-2 text-xs text-[#151514] focus:outline-none focus:bg-[#faf9f7] focus:border-[#151514]"
                         />
                       </div>
+                    </div>
+
+                    {/* Pemilihan Kurir Ekspedisi (Biteship) */}
+                    <div className="space-y-2 pt-2 border-t border-[#ddd9d2]/60">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#151514] flex items-center gap-1.5">
+                          <TruckIcon className="w-3.5 h-3.5 text-[#151514]" />
+                          Pilih Layanan Kurir &amp; Ekspedisi
+                        </span>
+                        {ratesLoading && (
+                          <span className="text-[10px] text-[#6b665c] font-medium flex items-center gap-1 animate-pulse">
+                            <ArrowPathIcon className="w-3 h-3 animate-spin" />
+                            Cek tarif...
+                          </span>
+                        )}
+                      </div>
+
+                      {checkoutForm.postal_code.trim().length < 5 && (
+                        <p className="text-[10px] text-[#8c827a] leading-relaxed">
+                          💡 Masukkan 5 digit kode pos untuk menampilkan opsi kurir (JNE, SiCepat, J&amp;T, AnterAja) secara akurat.
+                        </p>
+                      )}
+
+                      {ratesLoading && courierRates.length === 0 ? (
+                        <div className="p-3 bg-[#ebe9e5] rounded-xl text-center text-xs text-[#6b665c] animate-pulse">
+                          Sedang mengambil opsi ongkir...
+                        </div>
+                      ) : courierRates.length > 0 ? (
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                          {courierRates.map((rate, idx) => {
+                            const isSelected =
+                              selectedCourier?.courier_code === rate.courier_code &&
+                              selectedCourier?.courier_service_code === rate.courier_service_code;
+                            return (
+                              <button
+                                key={`${rate.courier_code}-${rate.courier_service_code}-${idx}`}
+                                type="button"
+                                onClick={() => setSelectedCourier(rate)}
+                                className={`w-full text-left p-2.5 rounded-xl border text-xs transition flex items-center justify-between ${
+                                  isSelected
+                                    ? "bg-white border-[#151514] shadow-xs"
+                                    : "bg-[#f5f3ef] border-[#ddd9d2] hover:border-[#151514]/40"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div
+                                    className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 ${
+                                      isSelected ? "border-[#151514] bg-[#151514]" : "border-[#b0aaa0]"
+                                    }`}
+                                  >
+                                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                  </div>
+                                  <div>
+                                    <div className="font-bold text-[#151514] flex items-center gap-1.5">
+                                      <span>{rate.courier_name}</span>
+                                      <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-[#ebe9e5] text-[#555]">
+                                        {rate.courier_service_name}
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-[#6b665c]">
+                                      Estimasi: {rate.duration || "1-3 Hari"}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <span className="font-bold text-[#151514] num-tabular text-xs">
+                                    {formatIDR(rate.price)}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 ) : (
@@ -604,7 +736,10 @@ export function CartPage({
                     <span className="font-semibold text-[#151514] num-tabular">{formatIDR(cartSubtotal)}</span>
                   </div>
                   <div className="flex justify-between text-[#6b665c]">
-                    <span>Biaya Pengiriman</span>
+                    <span>
+                      Biaya Pengiriman
+                      {hasPhysicalItems && selectedCourier ? ` (${selectedCourier.courier_name} ${selectedCourier.courier_service_name})` : ""}
+                    </span>
                     <span className="font-semibold text-[#151514] num-tabular">
                       {shippingCost > 0 ? formatIDR(shippingCost) : "Gratis"}
                     </span>

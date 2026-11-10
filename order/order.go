@@ -56,6 +56,9 @@ type Order struct {
 	PostalCode            string       `json:"postal_code"`
 	TotalAmount           int64        `json:"total_amount"`
 	ShippingCost          int64        `json:"shipping_cost"`
+	CourierName           string       `json:"courier_name,omitempty"`
+	CourierService        string       `json:"courier_service,omitempty"`
+	CourierETD            string       `json:"courier_etd,omitempty"`
 	UniqueCode            int64        `json:"unique_code,omitempty"`
 	GrandTotal            int64        `json:"grand_total"`
 	Status                string       `json:"status"` // pending, paid, processing, shipped, completed, cancelled
@@ -83,6 +86,10 @@ type CreateOrderParams struct {
 	City            string          `json:"city"`
 	PostalCode      string          `json:"postal_code"`
 	PaymentMethod   string          `json:"payment_method"`
+	CourierName     string          `json:"courier_name,omitempty"`
+	CourierService  string          `json:"courier_service,omitempty"`
+	CourierETD      string          `json:"courier_etd,omitempty"`
+	ShippingCost    int64           `json:"shipping_cost,omitempty"`
 	Items           []*CheckoutItem `json:"items"`
 }
 
@@ -173,11 +180,30 @@ func Create(ctx context.Context, p *CreateOrderParams) (*Order, error) {
 	}
 
 	var shippingCost int64 = 0
+	courierName := strings.TrimSpace(p.CourierName)
+	courierService := strings.TrimSpace(p.CourierService)
+	courierETD := strings.TrimSpace(p.CourierETD)
+
 	if !isDigitalOnly {
-		shippingCost = 15000 // Tarif flat default IDR 15.000 untuk barang fisik
-		if p.ShippingAddress == "" {
+		if strings.TrimSpace(p.ShippingAddress) == "" {
 			return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Shipping address is required for physical goods"}
 		}
+		if p.ShippingCost > 0 {
+			shippingCost = p.ShippingCost
+		} else {
+			s := loadBiteshipSettings(ctx)
+			shippingCost = s.DefaultFlatCost
+			if courierName == "" {
+				courierName = "Kurir Standar Toko"
+				courierService = "Reguler"
+				courierETD = "2-3 Hari"
+			}
+		}
+	} else {
+		shippingCost = 0
+		courierName = ""
+		courierService = ""
+		courierETD = ""
 	}
 
 	grandTotal := totalAmount + shippingCost
@@ -187,18 +213,23 @@ func Create(ctx context.Context, p *CreateOrderParams) (*Order, error) {
 		INSERT INTO orders (
 			user_id, customer_name, customer_email, customer_phone,
 			shipping_address, city, postal_code, total_amount, shipping_cost,
-			grand_total, status, payment_method, is_digital_only, created_at, updated_at
+			grand_total, status, payment_method, is_digital_only,
+			courier_name, courier_service, courier_etd, created_at, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13, $14, $15, NOW(), NOW())
 		RETURNING id, user_id, customer_name, customer_email, customer_phone,
 		          shipping_address, city, postal_code, total_amount, shipping_cost,
-		          grand_total, status, payment_method, is_digital_only, created_at, updated_at
+		          grand_total, status, payment_method, is_digital_only,
+		          COALESCE(courier_name, ''), COALESCE(courier_service, ''), COALESCE(courier_etd, ''),
+		          created_at, updated_at
 	`, optionalUserID, p.CustomerName, p.CustomerEmail, p.CustomerPhone,
 		p.ShippingAddress, p.City, p.PostalCode, totalAmount, shippingCost,
-		grandTotal, p.PaymentMethod, isDigitalOnly).Scan(
+		grandTotal, p.PaymentMethod, isDigitalOnly,
+		courierName, courierService, courierETD).Scan(
 		&ord.ID, &ord.UserID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
 		&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost,
 		&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.IsDigitalOnly,
+		&ord.CourierName, &ord.CourierService, &ord.CourierETD,
 		&ord.CreatedAt, &ord.UpdatedAt,
 	)
 	if err != nil {
@@ -238,6 +269,10 @@ type CheckoutParams struct {
 	PostalCode      string          `json:"postal_code"`
 	PaymentMethod   string          `json:"payment_method,omitempty"` // "QRIS" (default) or "BANK_TRANSFER"
 	BankCode        string          `json:"bank_code,omitempty"`      // e.g. "BCA", "MANDIRI", "BRI", "BNI"
+	CourierName     string          `json:"courier_name,omitempty"`
+	CourierService  string          `json:"courier_service,omitempty"`
+	CourierETD      string          `json:"courier_etd,omitempty"`
+	ShippingCost    int64           `json:"shipping_cost,omitempty"`
 	ReturnURL       string          `json:"return_url,omitempty"`
 	Items           []*CheckoutItem `json:"items"`
 }
@@ -340,11 +375,30 @@ func Checkout(ctx context.Context, p *CheckoutParams) (*CheckoutResponse, error)
 	}
 
 	var shippingCost int64 = 0
+	courierName := strings.TrimSpace(p.CourierName)
+	courierService := strings.TrimSpace(p.CourierService)
+	courierETD := strings.TrimSpace(p.CourierETD)
+
 	if !isDigitalOnly {
-		shippingCost = 15000 // Flat integer IDR shipping cost for physical goods
 		if strings.TrimSpace(p.ShippingAddress) == "" {
 			return nil, &errs.Error{Code: errs.InvalidArgument, Message: "Alamat pengiriman wajib diisi untuk produk fisik"}
 		}
+		if p.ShippingCost > 0 {
+			shippingCost = p.ShippingCost
+		} else {
+			s := loadBiteshipSettings(ctx)
+			shippingCost = s.DefaultFlatCost
+			if courierName == "" {
+				courierName = "Kurir Standar Toko"
+				courierService = "Reguler"
+				courierETD = "2-3 Hari"
+			}
+		}
+	} else {
+		shippingCost = 0
+		courierName = ""
+		courierService = ""
+		courierETD = ""
 	}
 
 	baseAmount := totalAmount + shippingCost
@@ -363,18 +417,23 @@ func Checkout(ctx context.Context, p *CheckoutParams) (*CheckoutResponse, error)
 		INSERT INTO orders (
 			user_id, customer_name, customer_email, customer_phone,
 			shipping_address, city, postal_code, total_amount, shipping_cost,
-			grand_total, status, payment_method, is_digital_only, created_at, updated_at
+			grand_total, status, payment_method, is_digital_only,
+			courier_name, courier_service, courier_etd, created_at, updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13, $14, $15, NOW(), NOW())
 		RETURNING id, user_id, customer_name, customer_email, customer_phone,
 		          shipping_address, city, postal_code, total_amount, shipping_cost,
-		          grand_total, status, payment_method, is_digital_only, created_at, updated_at
+		          grand_total, status, payment_method, is_digital_only,
+		          COALESCE(courier_name, ''), COALESCE(courier_service, ''), COALESCE(courier_etd, ''),
+		          created_at, updated_at
 	`, optionalUserID, p.CustomerName, p.CustomerEmail, p.CustomerPhone,
 		p.ShippingAddress, p.City, p.PostalCode, totalAmount, shippingCost,
-		baseAmount, paymentMethodLabel, isDigitalOnly).Scan(
+		baseAmount, paymentMethodLabel, isDigitalOnly,
+		courierName, courierService, courierETD).Scan(
 		&ord.ID, &ord.UserID, &ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
 		&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost,
 		&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.IsDigitalOnly,
+		&ord.CourierName, &ord.CourierService, &ord.CourierETD,
 		&ord.CreatedAt, &ord.UpdatedAt,
 	)
 	if err != nil {
@@ -491,7 +550,9 @@ func Get(ctx context.Context, id int64) (*Order, error) {
 		       customer_name, customer_email, customer_phone,
 		       shipping_address, city, postal_code, total_amount, shipping_cost, COALESCE(unique_code, 0),
 		       grand_total, status, payment_method, COALESCE(checkout_url, ''), payment_proof_url, tracking_number,
-		       is_digital_only, paid_at, created_at, updated_at
+		       is_digital_only, paid_at,
+		       COALESCE(courier_name, ''), COALESCE(courier_service, ''), COALESCE(courier_etd, ''),
+		       created_at, updated_at
 		FROM orders
 		WHERE id = $1
 	`, id).Scan(
@@ -499,7 +560,9 @@ func Get(ctx context.Context, id int64) (*Order, error) {
 		&ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
 		&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost, &ord.UniqueCode,
 		&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.CheckoutURL, &ord.PaymentProofURL, &ord.TrackingNumber,
-		&ord.IsDigitalOnly, &ord.PaidAt, &ord.CreatedAt, &ord.UpdatedAt,
+		&ord.IsDigitalOnly, &ord.PaidAt,
+		&ord.CourierName, &ord.CourierService, &ord.CourierETD,
+		&ord.CreatedAt, &ord.UpdatedAt,
 	)
 	if errors.Is(err, sqldb.ErrNoRows) {
 		return nil, &errs.Error{Code: errs.NotFound, Message: "Order not found"}
@@ -549,7 +612,9 @@ func List(ctx context.Context) (*ListOrdersResponse, error) {
 			       customer_name, customer_email, customer_phone,
 			       shipping_address, city, postal_code, total_amount, shipping_cost, COALESCE(unique_code, 0),
 			       grand_total, status, payment_method, COALESCE(checkout_url, ''), payment_proof_url, tracking_number,
-			       is_digital_only, paid_at, created_at, updated_at
+			       is_digital_only, paid_at,
+			       COALESCE(courier_name, ''), COALESCE(courier_service, ''), COALESCE(courier_etd, ''),
+			       created_at, updated_at
 			FROM orders
 			ORDER BY id DESC LIMIT 100
 		`)
@@ -559,7 +624,9 @@ func List(ctx context.Context) (*ListOrdersResponse, error) {
 			       customer_name, customer_email, customer_phone,
 			       shipping_address, city, postal_code, total_amount, shipping_cost, COALESCE(unique_code, 0),
 			       grand_total, status, payment_method, COALESCE(checkout_url, ''), payment_proof_url, tracking_number,
-			       is_digital_only, paid_at, created_at, updated_at
+			       is_digital_only, paid_at,
+			       COALESCE(courier_name, ''), COALESCE(courier_service, ''), COALESCE(courier_etd, ''),
+			       created_at, updated_at
 			FROM orders
 			WHERE user_id = $1 OR customer_email = $2
 			ORDER BY id DESC LIMIT 50
@@ -579,7 +646,9 @@ func List(ctx context.Context) (*ListOrdersResponse, error) {
 			&ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
 			&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost, &ord.UniqueCode,
 			&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.CheckoutURL, &ord.PaymentProofURL, &ord.TrackingNumber,
-			&ord.IsDigitalOnly, &ord.PaidAt, &ord.CreatedAt, &ord.UpdatedAt,
+			&ord.IsDigitalOnly, &ord.PaidAt,
+			&ord.CourierName, &ord.CourierService, &ord.CourierETD,
+			&ord.CreatedAt, &ord.UpdatedAt,
 		); err != nil {
 			return nil, &errs.Error{Code: errs.Internal, Message: err.Error()}
 		}
@@ -980,7 +1049,9 @@ func AdminDashboard(ctx context.Context) (*DashboardStatsResponse, error) {
 		       customer_name, customer_email, customer_phone,
 		       shipping_address, city, postal_code, total_amount, shipping_cost, COALESCE(unique_code, 0),
 		       grand_total, status, payment_method, COALESCE(checkout_url, ''), payment_proof_url, tracking_number,
-		       is_digital_only, paid_at, created_at, updated_at
+		       is_digital_only, paid_at,
+		       COALESCE(courier_name, ''), COALESCE(courier_service, ''), COALESCE(courier_etd, ''),
+		       created_at, updated_at
 		FROM orders
 		ORDER BY id DESC LIMIT 10
 	`)
@@ -993,7 +1064,9 @@ func AdminDashboard(ctx context.Context) (*DashboardStatsResponse, error) {
 				&ord.CustomerName, &ord.CustomerEmail, &ord.CustomerPhone,
 				&ord.ShippingAddress, &ord.City, &ord.PostalCode, &ord.TotalAmount, &ord.ShippingCost, &ord.UniqueCode,
 				&ord.GrandTotal, &ord.Status, &ord.PaymentMethod, &ord.CheckoutURL, &ord.PaymentProofURL, &ord.TrackingNumber,
-				&ord.IsDigitalOnly, &ord.PaidAt, &ord.CreatedAt, &ord.UpdatedAt,
+				&ord.IsDigitalOnly, &ord.PaidAt,
+				&ord.CourierName, &ord.CourierService, &ord.CourierETD,
+				&ord.CreatedAt, &ord.UpdatedAt,
 			); err == nil {
 				s.RecentOrders = append(s.RecentOrders, &ord)
 			}

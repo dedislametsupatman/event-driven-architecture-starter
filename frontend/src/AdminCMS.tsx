@@ -128,6 +128,18 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
   const [qrisGateEnabled, setQrisGateEnabled] = useState(true);
   const [savingQrisGateSettings, setSavingQrisGateSettings] = useState(false);
 
+  // Biteship Shipping Settings State
+  const [biteshipApiKey, setBiteshipApiKey] = useState("");
+  const [biteshipOriginPostalCode, setBiteshipOriginPostalCode] = useState("40115");
+  const [biteshipOriginAddress, setBiteshipOriginAddress] = useState("Jl. Merdeka No. 45, Bandung, Jawa Barat");
+  const [biteshipCouriers, setBiteshipCouriers] = useState("jne,sicepat,anteraja,jnt");
+  const [biteshipEnabled, setBiteshipEnabled] = useState(false);
+  const [defaultFlatCost, setDefaultFlatCost] = useState(15000);
+  const [hasBiteshipApiKey, setHasBiteshipApiKey] = useState(false);
+  const [savingBiteshipSettings, setSavingBiteshipSettings] = useState(false);
+  const [testingBiteship, setTestingBiteship] = useState(false);
+  const [biteshipTestResult, setBiteshipTestResult] = useState<{ success: boolean; message: string; couriers_count?: number } | null>(null);
+
   // Store Profile & Branding Settings State
   const [storeName, setStoreName] = useState("SUPATMAN STORE");
   const [storeTagline, setStoreTagline] = useState("Hardware Setup & Digital Atelier");
@@ -205,6 +217,7 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       fetchAuthSettings();
       fetchEmailSettings();
       fetchQrisGateSettings();
+      fetchBiteshipSettings();
       fetchDuitkuSettings();
     }
   }, [activeTab, isAdminLoggedIn]);
@@ -352,6 +365,64 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
       showNotification(err.message || "Gagal menyimpan pengaturan QRISGate", true);
     } finally {
       setSavingQrisGateSettings(false);
+    }
+  };
+
+  const fetchBiteshipSettings = async () => {
+    try {
+      const s = await api.getShippingSettings();
+      setBiteshipOriginPostalCode(s.biteship_origin_postal_code || "40115");
+      setBiteshipOriginAddress(s.biteship_origin_address || "");
+      setBiteshipCouriers(s.biteship_couriers || "jne,sicepat,anteraja,jnt");
+      setBiteshipEnabled(s.biteship_enabled ?? false);
+      setDefaultFlatCost(s.default_flat_shipping_cost || 15000);
+      setHasBiteshipApiKey(Boolean(s.biteship_api_key && s.biteship_api_key.length > 5));
+    } catch (err: any) {
+      console.error("Gagal memuat pengaturan Biteship:", err);
+    }
+  };
+
+  const handleSaveBiteshipSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingBiteshipSettings(true);
+    setBiteshipTestResult(null);
+    try {
+      const res = await api.updateShippingSettings({
+        biteship_api_key: biteshipApiKey || undefined,
+        biteship_origin_postal_code: biteshipOriginPostalCode,
+        biteship_origin_address: biteshipOriginAddress,
+        biteship_couriers: biteshipCouriers,
+        biteship_enabled: biteshipEnabled,
+        default_flat_shipping_cost: defaultFlatCost,
+      });
+      showNotification("Pengaturan Pengiriman Biteship berhasil disimpan!");
+      setBiteshipApiKey("");
+      setHasBiteshipApiKey(Boolean(res.biteship_api_key && res.biteship_api_key.length > 5));
+      setBiteshipOriginPostalCode(res.biteship_origin_postal_code);
+      setBiteshipOriginAddress(res.biteship_origin_address);
+      setBiteshipCouriers(res.biteship_couriers);
+      setBiteshipEnabled(res.biteship_enabled);
+      setDefaultFlatCost(res.default_flat_shipping_cost);
+    } catch (err: any) {
+      showNotification(err.message || "Gagal menyimpan pengaturan Biteship", true);
+    } finally {
+      setSavingBiteshipSettings(false);
+    }
+  };
+
+  const handleTestBiteship = async () => {
+    setTestingBiteship(true);
+    setBiteshipTestResult(null);
+    try {
+      const res = await api.testBiteship();
+      setBiteshipTestResult(res);
+      showNotification(res.message, !res.success);
+    } catch (err: any) {
+      const msg = err.message || "Gagal menguji koneksi Biteship";
+      setBiteshipTestResult({ success: false, message: msg });
+      showNotification(msg, true);
+    } finally {
+      setTestingBiteship(false);
     }
   };
 
@@ -1610,9 +1681,16 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                                 Digital Download Unlock
                               </span>
                             ) : (
-                              <div className="text-slate-600 text-[11px] truncate" title={ord.shipping_address}>
-                                {ord.city ? `${ord.city}, ` : ""}
-                                {ord.shipping_address}
+                              <div>
+                                <div className="text-slate-600 text-[11px] truncate" title={ord.shipping_address}>
+                                  {ord.city ? `${ord.city}, ` : ""}
+                                  {ord.shipping_address}
+                                </div>
+                                {ord.courier_name && (
+                                  <div className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                                    🚚 {ord.courier_name} {ord.courier_service ? `(${ord.courier_service})` : ""} {ord.courier_etd ? `• ${ord.courier_etd}` : ""}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </td>
@@ -2195,6 +2273,386 @@ export const AdminCMS: React.FC<AdminCMSProps> = ({ onBackToStore, userRole }) =
                     className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
                   >
                     {savingQrisGateSettings ? "Menyimpan..." : "Simpan Pengaturan QRISGate"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Section: Biteship Shipping Configuration */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg shadow-xs">
+                  🚚
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Pengaturan Logistik &amp; Pengiriman (Biteship)</h2>
+                  <p className="text-xs text-slate-500">
+                    Koneksikan toko dengan Biteship API untuk cek ongkir multi-kurir (JNE, SiCepat, J&amp;T, AnterAja, dll) secara otomatis.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveBiteshipSettings} className="space-y-5 text-xs">
+                {/* Toggle Enable Biteship */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">Status Integrasi Biteship</div>
+                    <div className="text-slate-500 mt-0.5">
+                      Aktifkan perhitungan tarif ongkos kirim dinamis real-time menggunakan Biteship
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={biteshipEnabled}
+                      onChange={(e) => setBiteshipEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                  </label>
+                </div>
+
+                {/* API Key */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="font-semibold text-slate-700">
+                      Biteship API Key <span className="text-slate-400 font-normal">(Bearer Token dari dashboard Biteship)</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {hasBiteshipApiKey ? (
+                        <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          ✓ API Key Tersimpan
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                          Belum Dikonfigurasi
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleTestBiteship}
+                        disabled={testingBiteship}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-[11px] border border-slate-300 transition disabled:opacity-50"
+                      >
+                        {testingBiteship ? "Menguji..." : "⚡ Tes Koneksi API"}
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="password"
+                    placeholder={hasBiteshipApiKey ? "••••••••••••••••••••••••••••••••" : "Contoh: biteship_test.eyJ... atau biteship_live..."}
+                    value={biteshipApiKey}
+                    onChange={(e) => setBiteshipApiKey(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-slate-800"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Dapatkan API Key di <a href="https://biteship.com/id/dashboard/api" target="_blank" rel="noreferrer" className="text-amber-600 underline">biteship.com/id/dashboard/api</a>. Kosongkan jika tidak ingin mengubah kunci saat ini.
+                  </p>
+                </div>
+
+                {/* Hasil Tes Koneksi */}
+                {biteshipTestResult && (
+                  <div className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+                    biteshipTestResult.success ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-rose-50 border-rose-200 text-rose-800"
+                  }`}>
+                    <span>{biteshipTestResult.message}</span>
+                    <button
+                      type="button"
+                      onClick={() => setBiteshipTestResult(null)}
+                      className="text-xs font-bold opacity-60 hover:opacity-100 ml-2"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                {/* Lokasi Asal Toko / Gudang */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1.5">
+                      Kode Pos Toko / Asal Pengiriman <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: 40115"
+                      value={biteshipOriginPostalCode}
+                      onChange={(e) => setBiteshipOriginPostalCode(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-slate-800"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Digunakan sebagai origin untuk hitung jarak ongkir.</p>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block font-semibold text-slate-700 mb-1.5">
+                      Alamat Asal Penjemputan Paket
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Jl. Merdeka No. 45, Bandung, Jawa Barat"
+                      value={biteshipOriginAddress}
+                      onChange={(e) => setBiteshipOriginAddress(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:bg-white focus:border-slate-800"
+                    />
+                  </div>
+                </div>
+
+                {/* Kurir yang Diaktifkan & Biaya Fallback */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1.5">
+                      Pilihan Kurir Biteship (Dipisahkan Koma)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="jne,sicepat,anteraja,jnt,pos,tiki"
+                      value={biteshipCouriers}
+                      onChange={(e) => setBiteshipCouriers(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:bg-white focus:border-slate-800"
+                    />
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {["jne", "sicepat", "anteraja", "jnt", "pos", "tiki"].map((c) => {
+                        const active = biteshipCouriers.toLowerCase().includes(c);
+                        return (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => {
+                              const list = biteshipCouriers.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean);
+                              if (list.includes(c)) {
+                                setBiteshipCouriers(list.filter((x) => x !== c).join(","));
+                              } else {
+                                setBiteshipCouriers([...list, c].join(","));
+                              }
+                            }}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
+                              active ? "bg-amber-600 text-white border-amber-600" : "bg-slate-100 text-slate-600 border-slate-200"
+                            }`}
+                          >
+                            {c.toUpperCase()} {active ? "✓" : "+"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1.5">
+                      Tarif Ongkir Standar Cadangan (Fallback IDR)
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-2.5 font-bold text-slate-400">Rp</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={defaultFlatCost}
+                        onChange={(e) => setDefaultFlatCost(parseInt(e.target.value, 10) || 0)}
+                        className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:bg-white focus:border-slate-800"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Digunakan otomatis jika Biteship sedang nonaktif atau kode pos tujuan belum diinput pembeli.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingBiteshipSettings}
+                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
+                  >
+                    {savingBiteshipSettings ? "Menyimpan..." : "Simpan Pengaturan Biteship"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Section: Biteship Logistics & Shipping Configuration */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-100">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg shadow-xs">
+                  🚚
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Pengaturan Logistik &amp; Ekspedisi (Biteship)</h2>
+                  <p className="text-xs text-slate-500">
+                    Koneksi API Biteship untuk hitung ongkir otomatis multi-kurir (JNE, SiCepat, J&amp;T, AnterAja, dll) secara akurat ke seluruh Indonesia.
+                  </p>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveBiteshipSettings} className="space-y-5 text-xs">
+                {/* Status Toggle */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">Status Integrasi Biteship</div>
+                    <div className="text-slate-500 mt-0.5">
+                      Aktifkan kalkulasi ongkos kirim real-time berdasarkan alamat &amp; kode pos pembeli
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={biteshipEnabled}
+                      onChange={(e) => setBiteshipEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                  </label>
+                </div>
+
+                {/* API Key */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="font-bold text-slate-700 flex items-center gap-1.5">
+                      <span>Biteship API Key</span>
+                      {hasBiteshipApiKey && (
+                        <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          ✓ Key tersimpan di database
+                        </span>
+                      )}
+                    </label>
+                    <a
+                      href="https://biteship.com/dashboard/api"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-amber-700 hover:underline text-[11px] font-medium"
+                    >
+                      Buka Dashboard Biteship &rarr;
+                    </a>
+                  </div>
+                  <input
+                    type="password"
+                    placeholder={hasBiteshipApiKey ? "•••••••••••••••••••••••••••••••• (masukkan baru jika ingin mengganti)" : "biteship_test.eyJ... atau biteship_live..."}
+                    value={biteshipApiKey}
+                    onChange={(e) => setBiteshipApiKey(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:bg-white focus:border-amber-600 transition"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Dapatkan API Key di menu <strong>Integrasi / API</strong> pada dashboard Biteship Anda. Mendukung key testing maupun live.
+                  </p>
+                </div>
+
+                {/* Origin Location */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1.5">Kode Pos Asal Toko (Origin)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="40115"
+                      value={biteshipOriginPostalCode}
+                      onChange={(e) => setBiteshipOriginPostalCode(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:bg-white focus:border-amber-600 transition"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Kode pos lokasi gudang / pengirim (5 digit angka).</p>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block font-bold text-slate-700 mb-1.5">Alamat Asal Penjemputan / Toko</label>
+                    <input
+                      type="text"
+                      placeholder="Jl. Merdeka No. 45, Bandung, Jawa Barat"
+                      value={biteshipOriginAddress}
+                      onChange={(e) => setBiteshipOriginAddress(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:bg-white focus:border-amber-600 transition"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">Alamat lengkap penjemputan paket untuk kurir.</p>
+                  </div>
+                </div>
+
+                {/* Couriers Selection */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">
+                    Daftar Kurir yang Diaktifkan (Pisahkan dengan koma)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="jne,sicepat,anteraja,jnt"
+                    value={biteshipCouriers}
+                    onChange={(e) => setBiteshipCouriers(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:bg-white focus:border-amber-600 transition"
+                  />
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {["jne", "sicepat", "anteraja", "jnt", "pos", "tiki"].map((c) => {
+                      const activeList = biteshipCouriers.split(",").map((s) => s.trim().toLowerCase());
+                      const isIncluded = activeList.includes(c);
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            if (isIncluded) {
+                              setBiteshipCouriers(activeList.filter((x) => x !== c).join(","));
+                            } else {
+                              setBiteshipCouriers([...activeList.filter(Boolean), c].join(","));
+                            }
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition ${
+                            isIncluded
+                              ? "bg-amber-600 text-white border-amber-600 shadow-xs"
+                              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                          }`}
+                        >
+                          {isIncluded ? "✓ " : "+ "}
+                          {c.toUpperCase()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Fallback Flat Shipping */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">
+                    Tarif Flat Cadangan (Default Fallback IDR)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    placeholder="15000"
+                    value={defaultFlatCost}
+                    onChange={(e) => setDefaultFlatCost(Number(e.target.value) || 0)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-xs focus:outline-none focus:bg-white focus:border-amber-600 transition"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Tarif ini otomatis dipakai jika pembeli belum memasukkan kode pos, atau jika layanan Biteship sedang timeout/maintenance sehingga checkout pembeli tidak terganggu.
+                  </p>
+                </div>
+
+                {/* Test Connection Banner */}
+                {biteshipTestResult && (
+                  <div
+                    className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+                      biteshipTestResult.success
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                        : "bg-rose-50 border-rose-200 text-rose-800"
+                    }`}
+                  >
+                    <span>{biteshipTestResult.message}</span>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                  <button
+                    type="button"
+                    disabled={testingBiteship}
+                    onClick={handleTestBiteship}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition disabled:opacity-50"
+                  >
+                    {testingBiteship ? "Menguji koneksi..." : "🔍 Tes Koneksi Biteship"}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={savingBiteshipSettings}
+                    className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-xs shadow-md transition disabled:opacity-50"
+                  >
+                    {savingBiteshipSettings ? "Menyimpan..." : "Simpan Pengaturan Biteship"}
                   </button>
                 </div>
               </form>
